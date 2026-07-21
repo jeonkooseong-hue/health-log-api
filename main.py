@@ -1,30 +1,25 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
-import json
-import os
+from sqlalchemy.orm import Session
 from datetime import date, timedelta
+import json
 
-app = FastAPI(title="마이 헬스 로그 API", version="1.0")
+from database import Base, engine, get_db, User, Record
+from auth import hash_password, verify_password, create_access_token, get_current_user
 
-DATA_FILE = "data.json"  # 기록을 저장할 파일 이름
+# 서버 시작 시 표(테이블)가 없으면 만든다
+Base.metadata.create_all(bind=engine)
 
-
-def load_data():
-    """서버 시작 시 파일에서 기록을 불러온다. 파일 없으면 빈 목록."""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+app = FastAPI(title="마이 헬스 로그 API", version="2.0")
 
 
-def save_data():
-    """현재 기록(records)을 파일에 저장한다."""
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
+# ===== 요청 검증용 모델 (Pydantic) =====
 
-
-records = load_data()  # 시작할 때 파일에서 불러오기 (재시작해도 유지)
+class UserCreate(BaseModel):
+    username: str
+    password: str
 
 
 class RecordIn(BaseModel):
@@ -37,15 +32,13 @@ class RecordIn(BaseModel):
     steps: int = 0
     sleep_hours: float = 0.0
     memo: str = ""
-    user: str = "default"   # 사용자 구분 (안 보내면 default)
 
 
 # ===== 건강 계산 함수들 =====
 
 def calc_bmi(weight, height):
-    height_m = height / 100         # cm → m (175 → 1.75)
-    bmi = weight / (height_m ** 2)  # 몸무게 ÷ (키 × 키)
-    return round(bmi, 1)            # 소수 첫째자리 반올림
+    height_m = height / 100
+    return round(weight / (height_m ** 2), 1)
 
 
 def classify_bmi(bmi):
@@ -57,7 +50,8 @@ def classify_bmi(bmi):
         return "과체중"
     else:
         return "비만"
-    
+
+
 def classify_bp(systolic, diastolic):
     if systolic >= 140 or diastolic >= 90:
         return "고혈압"
@@ -66,6 +60,7 @@ def classify_bp(systolic, diastolic):
     else:
         return "주의"
 
+
 def classify_sugar(blood_sugar):
     if blood_sugar < 100:
         return "정상"
@@ -73,114 +68,176 @@ def classify_sugar(blood_sugar):
         return "공복혈당장애"
     else:
         return "당뇨 의심"
-    
+
+
 def make_warnings(bmi_cat, bp_cat, sugar_cat):
-    warnings = []                          # 빈 경고 목록
+    warnings = []
     if bmi_cat == "비만":
-        warnings.append("비만주의")
+        warnings.append("비만 주의")
     if bp_cat == "고혈압":
-        warnings.append("고혈압주의")
+        warnings.append("고혈압 주의")
     if sugar_cat == "당뇨 의심":
-        warnings.append("당뇨의심주의")
-    return warnings                        # 목록 반환 (없으면 빈 [])
+        warnings.append("당뇨 의심 주의")
+    return warnings
 
 
-def add_health_info(rec):
-    """기록 딕셔너리(rec)에 bmi/분류/경고 칸을 채워 넣는다."""
-    bmi = calc_bmi(rec["weight"], rec["height"])
-    rec["bmi"] = bmi
-    rec["bmi_category"] = classify_bmi(bmi)
-    rec["bp_category"] = classify_bp(rec["systolic"], rec["diastolic"])
-    rec["sugar_category"] = classify_sugar(rec["blood_sugar"])
-    rec["warnings"] = make_warnings(
-        rec["bmi_category"],
-        rec["bp_category"],
-        rec["sugar_category"],
-    )
-    return rec
+def compute_and_fill(record: Record, data: RecordIn):
+    """RecordIn 값으로 Record 객체의 필드 + 계산값을 채운다."""
+    record.date = data.date
+    record.weight = data.weight
+    record.height = data.height
+    record.systolic = data.systolic
+    record.diastolic = data.diastolic
+    record.blood_sugar = data.blood_sugar
+    record.steps = data.steps
+    record.sleep_hours = data.sleep_hours
+    record.memo = data.memo
 
+    bmi = calc_bmi(data.weight, data.height)
+    record.bmi = bmi
+    record.bmi_category = classify_bmi(bmi)
+    record.bp_category = classify_bp(data.systolic, data.diastolic)
+    record.sugar_category = classify_sugar(data.blood_sugar)
+    warnings = make_warnings(record.bmi_category, record.bp_category, record.sugar_category)
+    record.warnings = json.dumps(warnings, ensure_ascii=False)
+    return record
+
+
+def record_to_dict(r: Record):
+    """DB 기록 객체 → JSON 응답용 딕셔너리."""
+    return {
+        "id": r.id,
+        "user_id": r.user_id,
+        "date": r.date,
+        "weight": r.weight,
+        "height": r.height,
+        "systolic": r.systolic,
+        "diastolic": r.diastolic,
+        "blood_sugar": r.blood_sugar,
+        "steps": r.steps,
+        "sleep_hours": r.sleep_hours,
+        "memo": r.memo,
+        "bmi": r.bmi,
+        "bmi_category": r.bmi_category,
+        "bp_category": r.bp_category,
+        "sugar_category": r.sugar_category,
+        "warnings": json.loads(r.warnings) if r.warnings else [],
+    }
+
+
+# ===== 기본 =====
 
 @app.get("/")
 def read_root():
     return {"message": "마이 헬스 로그 API"}
 
 
-next_id = max([r["id"] for r in records], default=0) + 1  # 이어서 번호 부여
+# ===== 인증 =====
 
+@app.post("/signup")
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    exists = db.query(User).filter(User.username == user.username).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
+    new_user = User(username=user.username, hashed_password=hash_password(user.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"id": new_user.id, "username": new_user.username}
+
+
+@app.post("/login")
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == form.username).first()
+    if not user or not verify_password(form.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀립니다")
+    token = create_access_token(user.username)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+# ===== 기록 CRUD (로그인 필요) =====
 
 @app.post("/records")
-def add_record(record: RecordIn):
-    global next_id
-    new_record = record.model_dump()   # 받은 데이터를 딕셔너리로 변환
-    new_record["id"] = next_id         # 고유번호 붙이기
-    next_id += 1                       # 다음 번호 준비
-    add_health_info(new_record)        # BMI/분류/경고 자동 계산해 칸 추가
-    records.append(new_record)         # 리스트에 추가(저장)
-    save_data()                        # 파일에 저장
-    return new_record                  # 저장된 것 돌려주기
+def add_record(record: RecordIn,
+               current_user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    new = Record(user_id=current_user.id)
+    compute_and_fill(new, record)
+    db.add(new)
+    db.commit()
+    db.refresh(new)
+    return record_to_dict(new)
 
 
 @app.get("/records")
-def get_records(user: str = None):
-    # ?user=철수 를 주면 그 사람 기록만, 안 주면 전체
-    if user is None:
-        result = records
-    else:
-        result = [r for r in records if r.get("user") == user]
-    return {"count": len(result), "records": result}
-# TODO: GET    /records/{record_id} - 단건 조회 (없으면 404)
+def get_records(current_user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    rows = db.query(Record).filter(Record.user_id == current_user.id).all()
+    return {"count": len(rows), "records": [record_to_dict(r) for r in rows]}
+
+
 @app.get("/records/{record_id}")
-def get_one(record_id: int):
-    for r in records:
-        if r["id"] == record_id:
-            return r
-    raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
-# TODO: PUT    /records/{record_id} - 수정
+def get_one(record_id: int,
+            current_user: User = Depends(get_current_user),
+            db: Session = Depends(get_db)):
+    r = db.query(Record).filter(Record.id == record_id,
+                                Record.user_id == current_user.id).first()
+    if r is None:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
+    return record_to_dict(r)
+
+
 @app.put("/records/{record_id}")
-def update_record(record_id: int, record: RecordIn):
-    for i, r in enumerate(records):
-        if r["id"] == record_id:
-            updated = record.model_dump()
-            updated["id"] = record_id
-            add_health_info(updated)       # 수정해도 BMI/분류/경고 재계산
-            records[i] = updated
-            save_data()                    # 파일에 저장
-            return updated
-    raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
-# TODO: DELETE /records/{record_id} - 삭제
+def update_record(record_id: int, record: RecordIn,
+                  current_user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    r = db.query(Record).filter(Record.id == record_id,
+                                Record.user_id == current_user.id).first()
+    if r is None:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
+    compute_and_fill(r, record)
+    db.commit()
+    db.refresh(r)
+    return record_to_dict(r)
+
+
 @app.delete("/records/{record_id}")
-def delete_record(record_id:int):
-    for r in records:
-        if r["id"] ==record_id:
-            records.remove(r)
-            save_data()                    # 파일에 저장
-            return{'message':'삭제됨', 'id':record_id}
-    raise HTTPException(status_code=404, detail='기록을 찾을 수 없습니다')
+def delete_record(record_id: int,
+                  current_user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    r = db.query(Record).filter(Record.id == record_id,
+                                Record.user_id == current_user.id).first()
+    if r is None:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다")
+    db.delete(r)
+    db.commit()
+    return {"message": "삭제됨", "id": record_id}
+
+
+# ===== 검색 · 통계 · 리포트 (로그인 필요, 본인 기록만) =====
+
 @app.get("/search")
-def search_records(start: str, end: str, user: str = None):
-    # ?start=2026-07-01&end=2026-07-31&user=철수 (user는 선택)
-    result = []
-    for r in records:
-        if start <= r["date"] <= end:              # 날짜가 start~end 사이면
-            if user is None or r.get("user") == user:  # user 안 주면 전체, 주면 그 사람만
-                result.append(r)
-    return {"count": len(result), "records": result}
+def search_records(start: str, end: str,
+                   current_user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    rows = db.query(Record).filter(
+        Record.user_id == current_user.id,
+        Record.date >= start,
+        Record.date <= end,
+    ).all()
+    return {"count": len(rows), "records": [record_to_dict(r) for r in rows]}
 
 
 @app.get("/stats")
-def get_stats(user: str = None):
-    # ?user=철수 를 주면 그 사람 기록만 통계
-    if user is None:
-        target = records
-    else:
-        target = [r for r in records if r.get("user") == user]
-
-    if not target:                      # 대상 기록이 하나도 없으면
+def get_stats(current_user: User = Depends(get_current_user),
+              db: Session = Depends(get_db)):
+    rows = db.query(Record).filter(Record.user_id == current_user.id).all()
+    if not rows:
         return {"count": 0, "message": "기록이 없습니다"}
-    weights = [r["weight"] for r in target]   # 몸무게만 모은 목록
-    bmis = [r["bmi"] for r in target]         # bmi만 모은 목록
+    weights = [r.weight for r in rows]
+    bmis = [r.bmi for r in rows]
     return {
-        "count": len(target),
+        "count": len(rows),
         "avg_weight": round(sum(weights) / len(weights), 1),
         "avg_bmi": round(sum(bmis) / len(bmis), 1),
         "min_weight": min(weights),
@@ -188,133 +245,39 @@ def get_stats(user: str = None):
     }
 
 
-def avg_weight_between(target, start_day, end_day):
-    """target 기록 중 날짜가 start_day~end_day 사이인 것들의 평균 체중. 없으면 None."""
-    weights = []
-    for r in target:
-        d = date.fromisoformat(r["date"])   # "2026-07-20" → 진짜 날짜
-        if start_day <= d <= end_day:
-            weights.append(r["weight"])
-    if not weights:
-        return None
-    return round(sum(weights) / len(weights), 1)
-
-
 @app.get("/report/weekly")
-def weekly_report(user: str = None):
-    # user 필터
-    if user is None:
-        target = records
-    else:
-        target = [r for r in records if r.get("user") == user]
-
+def weekly_report(current_user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    rows = db.query(Record).filter(Record.user_id == current_user.id).all()
     today = date.today()
-    # 최근 7일: 오늘~6일 전 / 지난주: 7~13일 전
-    this_week = avg_weight_between(target, today - timedelta(days=6), today)
-    last_week = avg_weight_between(target, today - timedelta(days=13), today - timedelta(days=7))
 
-    # 변화량 (둘 다 있을 때만 계산)
-    if this_week is not None and last_week is not None:
-        change = round(this_week - last_week, 1)
-    else:
-        change = None
+    def avg_between(start_day, end_day):
+        ws = [r.weight for r in rows
+              if start_day <= date.fromisoformat(r.date) <= end_day]
+        return round(sum(ws) / len(ws), 1) if ws else None
+
+    this_week = avg_between(today - timedelta(days=6), today)
+    last_week = avg_between(today - timedelta(days=13), today - timedelta(days=7))
+    change = round(this_week - last_week, 1) if (this_week is not None and last_week is not None) else None
 
     return {
-        "user": user if user else "전체",
+        "user": current_user.username,
         "today": today.isoformat(),
         "this_week_avg_weight": this_week,
         "last_week_avg_weight": last_week,
-        "change": change,   # 양수면 증가, 음수면 감소
+        "change": change,
     }
 
 
-PAGE_HTML = """
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>마이 헬스 로그</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 20px auto; padding: 0 16px; }
-    h1 { font-size: 20px; }
-    form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
-    label { font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
-    input { padding: 6px; }
-    button { grid-column: 1 / -1; padding: 8px; cursor: pointer; }
-    table { border-collapse: collapse; width: 100%; font-size: 13px; }
-    th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; }
-    th { background: #f0f0f0; }
-    .warn { color: #c00; }
-  </style>
-</head>
-<body>
-  <h1>마이 헬스 로그</h1>
+# ===== HTML 화면 =====
 
-  <form id="f">
-    <label>날짜 <input name="date" type="date" required></label>
-    <label>사용자 <input name="user" value="default"></label>
-    <label>몸무게(kg) <input name="weight" type="number" step="0.1" required></label>
-    <label>키(cm) <input name="height" type="number" step="0.1" required></label>
-    <label>수축기 혈압 <input name="systolic" type="number" required></label>
-    <label>이완기 혈압 <input name="diastolic" type="number" required></label>
-    <label>공복 혈당 <input name="blood_sugar" type="number" required></label>
-    <button type="submit">기록 추가</button>
-  </form>
+import os
 
-  <table>
-    <thead>
-      <tr><th>ID</th><th>날짜</th><th>사용자</th><th>체중</th><th>BMI</th>
-      <th>BMI분류</th><th>혈압</th><th>혈당</th><th>경고</th></tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
-
-  <script>
-    async function loadRecords() {
-      const res = await fetch("/records");
-      const data = await res.json();
-      const rows = document.getElementById("rows");
-      rows.innerHTML = "";
-      for (const r of data.records) {
-        const tr = document.createElement("tr");
-        tr.innerHTML =
-          `<td>${r.id}</td><td>${r.date}</td><td>${r.user ?? ""}</td>` +
-          `<td>${r.weight}</td><td>${r.bmi}</td><td>${r.bmi_category}</td>` +
-          `<td>${r.bp_category}</td><td>${r.sugar_category}</td>` +
-          `<td class="warn">${(r.warnings || []).join(", ")}</td>`;
-        rows.appendChild(tr);
-      }
-    }
-
-    document.getElementById("f").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const body = {
-        date: fd.get("date"),
-        user: fd.get("user"),
-        weight: parseFloat(fd.get("weight")),
-        height: parseFloat(fd.get("height")),
-        systolic: parseInt(fd.get("systolic")),
-        diastolic: parseInt(fd.get("diastolic")),
-        blood_sugar: parseInt(fd.get("blood_sugar")),
-      };
-      await fetch("/records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      e.target.reset();
-      loadRecords();
-    });
-
-    loadRecords();
-  </script>
-</body>
-</html>
-"""
+PAGE_PATH = os.path.join(os.path.dirname(__file__), "page.html")
 
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui():
-    return PAGE_HTML
+    with open(PAGE_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+

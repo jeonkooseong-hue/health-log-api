@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이 헬스 로그</title>
+<style>
+  :root{
+    --bg:#eef2f5; --card:#ffffff; --ink:#16232e; --muted:#64748b;
+    --line:#e2e8f0; --field:#f8fafc;
+    --brand:#0f766e; --brand-ink:#0b5a54;
+    --ok:#15803d; --ok-dot:#22c55e; --ok-bg:#e7f6ec;
+    --warn:#b45309; --warn-dot:#f59e0b; --warn-bg:#fdf2e3;
+    --bad:#b91c1c; --bad-dot:#ef4444; --bad-bg:#fdeaea;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    --radius:14px; --shadow:0 1px 2px rgba(16,35,46,.06),0 8px 24px rgba(16,35,46,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1317; --card:#161d23; --ink:#e6edf3; --muted:#8b98a5;
+      --line:#26303a; --field:#0f161b;
+      --brand:#2dd4bf; --brand-ink:#5eead4;
+      --ok:#4ade80; --ok-dot:#22c55e; --ok-bg:#13251a;
+      --warn:#fbbf24; --warn-dot:#f59e0b; --warn-bg:#2a2011;
+      --bad:#f87171; --bad-dot:#ef4444; --bad-bg:#2a1516;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 16px 64px}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:6px 2px 20px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em}
+  .pulse{width:26px;height:26px;flex:none}
+  .pulse path{stroke:var(--brand);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .who{font-size:13px;color:var(--muted)}
+  .who b{color:var(--ink)}
+  .ghost{background:none;border:1px solid var(--line);color:var(--muted);
+    padding:6px 12px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+  .ghost:hover{color:var(--ink);border-color:var(--muted)}
+
+  /* auth */
+  .auth{max-width:380px;margin:6vh auto 0;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px}
+  .auth h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}
+  .auth p{margin:0 0 20px;color:var(--muted);font-size:14px}
+  .auth .row{display:flex;gap:8px;margin-top:16px}
+  .auth .row button{flex:1}
+
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:14px;font-weight:500}
+  label span{display:block;margin-bottom:5px}
+  input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--field);color:var(--ink);font-size:15px;font-family:inherit}
+  input:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+
+  button.primary{background:var(--brand);color:#fff;border:none;padding:11px 16px;
+    border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  button.primary:hover{background:var(--brand-ink)}
+  button.line{background:var(--card);color:var(--brand);border:1px solid var(--brand);
+    padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+
+  .msg{font-size:13px;min-height:18px;margin-top:12px}
+  .msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
+
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+    margin:0 0 14px;font-weight:600}
+
+  /* KPI readouts */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px}
+  .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--muted)}
+  .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:-.02em;
+    margin-top:8px;font-variant-numeric:tabular-nums}
+  .kpi .k-unit{font-size:13px;color:var(--muted);font-family:var(--sans);margin-left:3px}
+  .kpi .k-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* weekly trend */
+  .trend{display:flex;align-items:baseline;gap:12px}
+  .trend .now{font-family:var(--mono);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums}
+  .chip-change{font-family:var(--mono);font-size:15px;font-weight:600;padding:3px 9px;border-radius:8px;
+    font-variant-numeric:tabular-nums}
+  .chip-change.down{color:var(--ok);background:var(--ok-bg)}
+  .chip-change.up{color:var(--bad);background:var(--bad-bg)}
+  .chip-change.flat{color:var(--muted);background:var(--field)}
+  .trend-sub{font-size:13px;color:var(--muted);margin-top:8px}
+
+  /* form */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .grid .full{grid-column:1/-1}
+
+  /* table */
+  .tbl-scroll{overflow-x:auto;margin:0 -18px -18px;padding:0 18px}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
+  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500}
+  .chip.s-ok{color:var(--ok);background:var(--ok-bg)}
+  .chip.s-warn{color:var(--warn);background:var(--warn-bg)}
+  .chip.s-bad{color:var(--bad);background:var(--bad-bg)}
+  .warns{color:var(--bad);font-size:12px}
+
+  .empty{text-align:center;color:var(--muted);font-size:14px;padding:28px 0}
+  .hidden{display:none}
+  @media (max-width:560px){
+    .kpis{grid-template-columns:1fr}
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg class="pulse" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M2 17 h6 l3 -9 l5 17 l3 -8 h11"/>
+      </svg>
+      마이 헬스 로그
+    </div>
+    <div id="userArea" class="hidden">
+      <span class="who"><b id="who"></b>님</span>
+      <button class="ghost" id="logoutBtn">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 로그인/회원가입 -->
+  <section class="auth" id="authView">
+    <h1>건강 기록 시작하기</h1>
+    <p>매일의 수치를 기록하면 BMI·혈압·혈당 상태를 자동으로 분석해 드려요.</p>
+    <label><span>아이디</span><input id="au" autocomplete="username"></label>
+    <label><span>비밀번호</span><input id="ap" type="password" autocomplete="current-password"></label>
+    <div class="row">
+      <button class="primary" id="loginBtn">로그인</button>
+      <button class="line" id="signupBtn">회원가입</button>
+    </div>
+    <div class="msg" id="authMsg"></div>
+  </section>
+
+  <!-- 앱 -->
+  <main class="hidden" id="appView">
+
+    <div class="kpis" id="kpis"><!-- JS로 채움 --></div>
+
+    <section class="card">
+      <h2>주간 리포트 · 평균 체중</h2>
+      <div id="report"></div>
+    </section>
+
+    <section class="card">
+      <h2>새 기록</h2>
+      <form id="recForm">
+        <div class="grid">
+          <label class="full"><span>날짜</span><input name="date" type="date" required></label>
+          <label><span>몸무게 (kg)</span><input name="weight" type="number" step="0.1" required></label>
+          <label><span>키 (cm)</span><input name="height" type="number" step="0.1" required></label>
+          <label><span>수축기 혈압</span><input name="systolic" type="number" required></label>
+          <label><span>이완기 혈압</span><input name="diastolic" type="number" required></label>
+          <label class="full"><span>공복 혈당 (mg/dL)</span><input name="blood_sugar" type="number" required></label>
+        </div>
+        <button class="primary" type="submit" style="width:100%">기록 추가</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>내 기록</h2>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="emptyRows">아직 기록이 없어요. 위에서 첫 기록을 추가해 보세요.</div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const token = () => localStorage.getItem("token");
+const authHead = () => ({ "Authorization": "Bearer " + token() });
+
+function statusClass(cat){
+  if (cat === "정상") return "s-ok";
+  if (["비만","고혈압","당뇨 의심"].includes(cat)) return "s-bad";
+  return "s-warn"; // 저체중·과체중·주의·공복혈당장애
+}
+
+function showApp(name){
+  $("authView").classList.add("hidden");
+  $("appView").classList.remove("hidden");
+  $("userArea").classList.remove("hidden");
+  $("who").textContent = name;
+  loadAll();
+}
+function showAuth(){
+  $("appView").classList.add("hidden");
+  $("userArea").classList.add("hidden");
+  $("authView").classList.remove("hidden");
+}
+
+// 회원가입
+$("signupBtn").onclick = async () => {
+  const m = $("authMsg"); m.className = "msg"; m.textContent = "";
+  const res = await fetch("/signup", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({username:$("au").value, password:$("ap").value})
+  });
+  if (res.ok){ m.className="msg ok"; m.textContent="가입 완료! 이제 로그인하세요."; }
+  else { const e = await res.json(); m.className="msg err"; m.textContent = e.detail || "가입 실패"; }
+};
+
+// 로그인
+$("loginBtn").onclick = async () => {
+  const m = $("authMsg"); m.className="msg"; m.textContent="";
+  const body = new URLSearchParams({username:$("au").value, password:$("ap").value});
+  const res = await fetch("/login", { method:"POST", body });
+  if (res.ok){
+    const d = await res.json();
+    localStorage.setItem("token", d.access_token);
+    localStorage.setItem("name", $("au").value);
+    showApp($("au").value);
+  } else { const e = await res.json(); m.className="msg err"; m.textContent = e.detail || "로그인 실패"; }
+};
+
+$("logoutBtn").onclick = () => {
+  localStorage.removeItem("token"); localStorage.removeItem("name"); showAuth();
+};
+
+async function loadAll(){
+  const [recRes, statRes, repRes] = await Promise.all([
+    fetch("/records", {headers:authHead()}),
+    fetch("/stats", {headers:authHead()}),
+    fetch("/report/weekly", {headers:authHead()}),
+  ]);
+  if (recRes.status === 401){ showAuth(); return; }
+  renderRecords((await recRes.json()).records);
+  renderKpis(await statRes.json());
+  renderReport(await repRes.json());
+}
+
+function renderKpis(s){
+  const box = $("kpis");
+  if (!s || s.count === 0){
+    box.innerHTML = `
+      <div class="kpi"><div class="k-label">총 기록</div><div class="k-val">0</div></div>
+      <div class="kpi"><div class="k-label">평균 체중</div><div class="k-val">—</div></div>
+      <div class="kpi"><div class="k-label">평균 BMI</div><div class="k-val">—</div></div>`;
+    return;
+  }
+  box.innerHTML = `
+    <div class="kpi"><div class="k-label">총 기록</div>
+      <div class="k-val">${s.count}<span class="k-unit">건</span></div></div>
+    <div class="kpi"><div class="k-label">평균 체중</div>
+      <div class="k-val">${s.avg_weight}<span class="k-unit">kg</span></div>
+      <div class="k-sub">${s.min_weight} – ${s.max_weight} kg</div></div>
+    <div class="kpi"><div class="k-label">평균 BMI</div>
+      <div class="k-val">${s.avg_bmi}</div></div>`;
+}
+
+function renderReport(r){
+  const box = $("report");
+  if (!r || r.this_week_avg_weight === null){
+    box.innerHTML = `<div class="trend-sub">최근 7일 기록이 없어요. 이번 주 기록을 추가하면 지난주와 비교해 드려요.</div>`;
+    return;
+  }
+  let chip = `<span class="chip-change flat">—</span>`, sub = "지난주 기록이 없어 비교할 수 없어요.";
+  if (r.change !== null){
+    const cls = r.change < 0 ? "down" : (r.change > 0 ? "up" : "flat");
+    const arrow = r.change < 0 ? "▼" : (r.change > 0 ? "▲" : "–");
+    const sign = r.change > 0 ? "+" : "";
+    chip = `<span class="chip-change ${cls}">${arrow} ${sign}${r.change} kg</span>`;
+    sub = `지난주 평균 ${r.last_week_avg_weight} kg 대비`;
+  }
+  box.innerHTML = `
+    <div class="trend"><span class="now">${r.this_week_avg_weight}<span class="k-unit">kg</span></span>${chip}</div>
+    <div class="trend-sub">${sub} · 기준일 ${r.today}</div>`;
+}
+
+function renderRecords(list){
+  const rows = $("rows"), empty = $("emptyRows");
+  rows.innerHTML = "";
+  if (!list || list.length === 0){ empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+  // 최신 날짜가 위로
+  list.sort((a,b) => (a.date < b.date ? 1 : -1));
+  for (const r of list){
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="num">${r.date}</td>`+
+      `<td class="num">${r.weight}</td>`+
+      `<td class="num">${r.bmi}</td>`+
+      `<td><span class="chip ${statusClass(r.bmi_category)}">${r.bmi_category}</span></td>`+
+      `<td><span class="chip ${statusClass(r.bp_category)}">${r.bp_category}</span></td>`+
+      `<td><span class="chip ${statusClass(r.sugar_category)}">${r.sugar_category}</span></td>`+
+      `<td class="warns">${(r.warnings||[]).join(", ") || "—"}</td>`;
+    rows.appendChild(tr);
+  }
+}
+
+$("recForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const body = {
+    date:f.get("date"),
+    weight:parseFloat(f.get("weight")),
+    height:parseFloat(f.get("height")),
+    systolic:parseInt(f.get("systolic")),
+    diastolic:parseInt(f.get("diastolic")),
+    blood_sugar:parseInt(f.get("blood_sugar")),
+  };
+  const res = await fetch("/records", {
+    method:"POST",
+    headers:{"Content-Type":"application/json", ...authHead()},
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401){ showAuth(); return; }
+  e.target.reset();
+  loadAll();
+});
+
+// 시작
+if (token()) showApp(localStorage.getItem("name") || ""); else showAuth();
+</script>
+</body>
+</html>

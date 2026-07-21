@@ -2,5 +2,7 @@ venv/
 __pycache__/
 *.pyc
 data.json
+*.db
+health.db
 .env
 .DS_Store

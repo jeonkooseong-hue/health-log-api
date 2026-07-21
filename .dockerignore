@@ -2,6 +2,8 @@ venv/
 __pycache__/
 *.pyc
 data.json
+*.db
+health.db
 .git/
 .gitignore
 .dockerignore

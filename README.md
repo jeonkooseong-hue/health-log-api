@@ -1,30 +1,48 @@
 # 마이 헬스 로그 API
 
-> 매일의 건강 수치를 기록하면 BMI를 자동 계산하고 혈압·혈당을 분류해 경고를 알려주는, 건강 관리를 돕는 개인용 REST API.
+> 매일의 건강 수치를 기록하면 BMI를 자동 계산하고 혈압·혈당을 분류해 경고를 알려주는, 로그인 기반 개인 건강 관리 REST API.
 
-건강 수치(몸무게·키·혈압·혈당 등)를 저장하면 서버가 BMI 계산, 혈압/혈당 분류, 경고 생성을 자동으로 처리하고, 쌓인 기록으로 검색과 통계를 제공합니다. 데이터는 JSON 파일에 저장돼 서버를 재시작해도 유지됩니다.
+회원가입·로그인 후 건강 수치(몸무게·키·혈압·혈당 등)를 저장하면 서버가 BMI 계산, 혈압/혈당 분류, 경고 생성을 자동으로 처리하고, 쌓인 기록으로 검색·통계·주간 리포트를 제공합니다. 데이터는 SQLite 데이터베이스에 저장되며, 기록은 로그인한 사용자별로 분리됩니다.
 
 > ⚠️ 학습용 프로젝트입니다. 건강 분류 기준은 학습을 위해 단순화한 값으로, 실제 의학적 진단이 아닙니다.
 
+## 데이터 모델
+
+데이터베이스 구조(ERD)와 DB↔API 스키마 매핑은 [`docs/ERD.md`](docs/ERD.md) 참고.
+
+- **USER** 1 : N **RECORD** (사용자 한 명이 여러 기록을 가짐)
+
 ## 기능 목록 (엔드포인트)
+
+### 인증
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/signup` | 회원가입 (비밀번호는 bcrypt 해시로 저장) |
+| POST | `/login` | 로그인, JWT 토큰 발급 |
+
+### 건강 기록 (로그인 필요, 본인 기록만)
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | POST | `/records` | 건강 기록 추가 (BMI·분류·경고 자동 계산) |
-| GET | `/records` | 전체 기록 조회 (개수 포함) |
-| GET | `/records/{id}` | 기록 하나 조회 (없으면 404) |
+| GET | `/records` | 내 기록 전체 조회 (개수 포함) |
+| GET | `/records/{id}` | 내 기록 하나 조회 (없으면 404) |
 | PUT | `/records/{id}` | 기록 수정 |
 | DELETE | `/records/{id}` | 기록 삭제 |
-| GET | `/search?start=&end=` | 날짜 범위로 검색 (`&user=` 선택) |
-| GET | `/stats` | 평균 체중·BMI 등 통계 (`?user=` 선택) |
-| GET | `/report/weekly` | 최근 7일 vs 지난주 평균 체중 변화 (`?user=` 선택) |
-| GET | `/ui` | 기록 입력/조회 HTML 화면 |
+| GET | `/search?start=&end=` | 날짜 범위로 검색 |
+| GET | `/stats` | 평균 체중·BMI 등 통계 |
+| GET | `/report/weekly` | 최근 7일 vs 지난주 평균 체중 변화 |
+| GET | `/ui` | 로그인·기록 입력·조회·통계 HTML 화면 |
 
-### 추가 기능
+> 인증이 필요한 창구는 `Authorization: Bearer <토큰>` 헤더가 있어야 합니다. `/docs` 의 **Authorize** 버튼으로도 테스트할 수 있습니다.
 
-- **사용자 구분**: `user` 필드로 기록을 사용자별로 분리. `?user=이름` 으로 필터.
-- **주간 리포트**: `/report/weekly` 에서 최근 7일과 지난주 평균 체중을 비교해 변화량 반환.
-- **간단 화면**: `/ui` 에서 폼으로 기록을 입력하고 표로 조회.
+### 주요 기능
+
+- **로그인/회원가입**: OAuth2 password flow + JWT 토큰, bcrypt 비밀번호 해시.
+- **사용자별 기록 분리**: 로그인한 사용자의 기록만 조회·수정·삭제 가능.
+- **주간 리포트**: 최근 7일과 지난주 평균 체중을 비교해 변화량 반환.
+- **HTML 화면**: `/ui` 에서 로그인, 기록 입력, 통계·리포트 카드, 상태별 색상 표시.
 
 ## 분류 기준
 
@@ -48,15 +66,12 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-접속: http://127.0.0.1:8000/docs
+접속: http://127.0.0.1:8000/docs · 화면: http://127.0.0.1:8000/ui
 
 ### Docker 실행
 
 ```bash
-# 이미지 빌드
 docker build -t health-log-api .
-
-# 컨테이너 실행
 docker run -d -p 8000:8000 health-log-api
 ```
 
@@ -65,10 +80,22 @@ docker run -d -p 8000:8000 health-log-api
 ## 기술 스택
 
 - Python 3.13
-- FastAPI
-- Uvicorn
+- FastAPI · Uvicorn
 - Pydantic (요청 검증)
+- SQLAlchemy · SQLite (데이터베이스)
+- PyJWT (토큰) · bcrypt (비밀번호 해시)
 - Docker
+
+## 프로젝트 구조
+
+```
+main.py        API 엔드포인트 + Pydantic 스키마 + 건강 계산 로직
+database.py    SQLite 연결 + 테이블(User, Record) 정의
+auth.py        비밀번호 해시, JWT 토큰, 로그인 확인
+page.html      /ui 화면
+docs/ERD.md    데이터 모델(ERD) 문서
+Dockerfile     이미지 빌드 설계도
+```
 
 ## 배포 URL
 
