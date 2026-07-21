@@ -85,6 +85,20 @@
     border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 28px}
   .guard h1{font-size:19px;margin:0 0 8px}
   .guard p{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .guard label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:12px}
+  .guard label span{display:block;margin-bottom:5px}
+  .guard input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--field);color:var(--ink);font-size:15px;font-family:inherit}
+  .guard input:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+  .guard .row{display:flex;gap:8px;margin-top:8px}
+  .guard .row button{flex:1}
+  .primary{background:var(--brand);color:#fff;border:none;padding:11px 16px;border-radius:10px;
+    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .primary:hover{background:var(--brand-ink)}
+  .line{background:var(--card);color:var(--brand);border:1px solid var(--brand);padding:11px 16px;
+    border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .gmsg{font-size:13px;min-height:18px;margin-top:12px}
+  .gmsg.err{color:var(--bad)} .gmsg.ok{color:var(--ok)}
   .hidden{display:none}
   @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} }
 </style>
@@ -92,11 +106,18 @@
 <body>
 <div class="wrap">
 
-  <!-- 권한 없을 때 -->
+  <!-- 로그인 / 권한 없을 때 -->
   <section class="guard hidden" id="guard">
-    <h1 id="guardTitle">관리자 전용 페이지</h1>
-    <p id="guardMsg">이 페이지는 관리자만 볼 수 있어요.</p>
-    <a class="btn" href="/ui">기록 화면으로 돌아가기</a>
+    <h1 id="guardTitle">관리자 로그인</h1>
+    <p id="guardMsg">관리자 계정으로 로그인하면 대시보드가 열려요.</p>
+    <label><span>아이디</span><input id="gu" autocomplete="username"></label>
+    <label><span>비밀번호</span><input id="gp" type="password" autocomplete="current-password"></label>
+    <div class="row">
+      <button class="primary" id="gLogin">로그인</button>
+      <button class="line" id="gSignup">회원가입</button>
+    </div>
+    <div class="gmsg" id="gMsg"></div>
+    <p style="margin:18px 0 0"><a class="btn" href="/ui">일반 기록 화면으로</a></p>
   </section>
 
   <!-- 대시보드 본체 -->
@@ -156,8 +177,43 @@ function showGuard(title, msg){
 
 $("logoutBtn").onclick = () => {
   localStorage.removeItem("token"); localStorage.removeItem("name");
-  location.href = "/ui";
+  checkAuth();
 };
+
+$("gLogin").onclick = async () => {
+  const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
+  const body = new URLSearchParams({username:$("gu").value, password:$("gp").value});
+  const res = await fetch("/login", {method:"POST", body});
+  if (res.ok){
+    const d = await res.json();
+    localStorage.setItem("token", d.access_token);
+    localStorage.setItem("name", $("gu").value);
+    checkAuth();
+  } else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "로그인 실패"; }
+};
+
+$("gSignup").onclick = async () => {
+  const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
+  const res = await fetch("/signup", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({username:$("gu").value, password:$("gp").value})});
+  if (res.ok){ const d = await res.json(); m.className = "gmsg ok"; m.textContent = `가입 완료 (권한: ${d.role}). 이제 로그인하세요.`; }
+  else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "가입 실패"; }
+};
+
+async function checkAuth(){
+  if (!token()){ showGuard("관리자 로그인", "관리자 계정으로 로그인하면 대시보드가 열려요."); return; }
+  const meRes = await fetch("/me", {headers:authHead()});
+  if (meRes.status === 401){ showGuard("관리자 로그인", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
+  const me = await meRes.json();
+  if (me.role !== "admin"){
+    showGuard("관리자 권한이 없어요", `${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`);
+    return;
+  }
+  $("guard").classList.add("hidden");
+  $("board").classList.remove("hidden");
+  $("adminName").textContent = me.username;
+  loadBoard();
+}
 
 function bars(container, items){
   const max = Math.max(1, ...items.map(i => i.value));
@@ -169,17 +225,7 @@ function bars(container, items){
      </div>`).join("") : `<div style="color:var(--muted);font-size:13px">데이터 없음</div>`;
 }
 
-async function init(){
-  if (!token()){ showGuard("로그인이 필요해요", "관리자 계정으로 로그인한 뒤 다시 열어 주세요."); return; }
-
-  const meRes = await fetch("/me", {headers:authHead()});
-  if (meRes.status === 401){ showGuard("로그인이 필요해요", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
-  const me = await meRes.json();
-  if (me.role !== "admin"){ showGuard(); return; }
-
-  $("board").classList.remove("hidden");
-  $("adminName").textContent = me.username;
-
+async function loadBoard(){
   const [stats, users, logs] = await Promise.all([
     fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
     fetch("/admin/users", {headers:authHead()}).then(r=>r.json()),
@@ -225,7 +271,7 @@ async function init(){
   }).join("");
 }
 
-init();
+checkAuth();
 </script>
 </body>
 </html>

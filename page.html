@@ -8,7 +8,7 @@
   :root{
     --bg:#eef2f5; --card:#ffffff; --ink:#16232e; --muted:#64748b;
     --line:#e2e8f0; --field:#f8fafc;
-    --brand:#0f766e; --brand-ink:#0b5a54;
+    --brand:#0f766e; --brand-ink:#0b5a54; --brand-soft:#d5ece9;
     --ok:#15803d; --ok-dot:#22c55e; --ok-bg:#e7f6ec;
     --warn:#b45309; --warn-dot:#f59e0b; --warn-bg:#fdf2e3;
     --bad:#b91c1c; --bad-dot:#ef4444; --bad-bg:#fdeaea;
@@ -112,6 +112,38 @@
   .warns{color:var(--bad);font-size:12px}
 
   .empty{text-align:center;color:var(--muted);font-size:14px;padding:28px 0}
+
+  /* 날짜 사이드바 + 상세 */
+  .log-layout{display:grid;grid-template-columns:170px 1fr;gap:16px}
+  .log-side{display:flex;flex-direction:column;gap:3px;max-height:440px;overflow-y:auto;
+    border-right:1px solid var(--line);padding-right:12px}
+  .date-btn{display:flex;align-items:center;gap:8px;text-align:left;background:none;border:none;
+    padding:9px 10px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);
+    font-variant-numeric:tabular-nums}
+  .date-btn:hover{background:var(--field)}
+  .date-btn.active{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+  .date-btn .d-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ok-dot)}
+  .date-btn .d-dot.warn{background:var(--bad-dot)}
+  .log-detail{min-height:200px}
+  .detail-empty{color:var(--muted);font-size:14px;padding:24px 0;text-align:center}
+  .detail-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .detail-date{font-family:var(--mono);font-size:22px;font-weight:600}
+  .detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 20px}
+  .dfield .df-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .dfield .df-val{font-family:var(--mono);font-size:18px;font-variant-numeric:tabular-nums;margin-top:2px}
+  .dfield .df-val .df-unit{font-family:var(--sans);font-size:12px;color:var(--muted);margin-left:3px}
+  .detail-warns{margin-top:16px;padding:12px;border-radius:10px;background:var(--bad-bg);color:var(--bad);font-size:13px}
+  .detail-memo{margin-top:14px;font-size:14px}
+  .detail-memo .dm-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:3px}
+  .btn-del{margin-top:18px;background:none;border:1px solid var(--line);color:var(--bad);
+    padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-del:hover{background:var(--bad-bg);border-color:var(--bad)}
+  @media(max-width:560px){
+    .log-layout{grid-template-columns:1fr}
+    .log-side{flex-direction:row;overflow-x:auto;max-height:none;border-right:none;
+      border-bottom:1px solid var(--line);padding:0 0 10px}
+    .date-btn{white-space:nowrap}
+  }
   .admin-link{display:flex;flex-direction:column;gap:3px;text-decoration:none;color:var(--ink);
     background:var(--card);border:1px solid var(--brand);border-radius:var(--radius);
     box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px}
@@ -190,15 +222,13 @@
 
     <section class="card">
       <h2>내 기록</h2>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr>
-            <th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th><th>경고</th>
-          </tr></thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
       <div class="empty hidden" id="emptyRows">아직 기록이 없어요. 위에서 첫 기록을 추가해 보세요.</div>
+      <div class="log-layout hidden" id="logLayout">
+        <aside class="log-side" id="dateList"></aside>
+        <div class="log-detail" id="dayDetail">
+          <div class="detail-empty">왼쪽에서 날짜를 선택하면 그날 기록을 볼 수 있어요.</div>
+        </div>
+      </div>
     </section>
 
     <!-- 관리자만 보이는 대시보드 링크 -->
@@ -317,26 +347,61 @@ function renderReport(r){
     <div class="trend-sub">${sub} · 기준일 ${r.today}</div>`;
 }
 
+let recordsCache = [];
+let selectedId = null;
+
 function renderRecords(list){
-  const rows = $("rows"), empty = $("emptyRows");
-  rows.innerHTML = "";
-  if (!list || list.length === 0){ empty.classList.remove("hidden"); return; }
-  empty.classList.add("hidden");
-  // 최신 날짜가 위로
-  list.sort((a,b) => (a.date < b.date ? 1 : -1));
-  for (const r of list){
-    const tr = document.createElement("tr");
-    tr.innerHTML =
-      `<td class="num">${r.date}</td>`+
-      `<td class="num">${r.weight}</td>`+
-      `<td class="num">${r.bmi}</td>`+
-      `<td><span class="chip ${statusClass(r.bmi_category)}">${r.bmi_category}</span></td>`+
-      `<td><span class="chip ${statusClass(r.bp_category)}">${r.bp_category}</span></td>`+
-      `<td><span class="chip ${statusClass(r.sugar_category)}">${r.sugar_category}</span></td>`+
-      `<td>${r.memo || "—"}</td>`+
-      `<td class="warns">${(r.warnings||[]).join(", ") || "—"}</td>`;
-    rows.appendChild(tr);
+  const side = $("dateList"), empty = $("emptyRows"), layout = $("logLayout");
+  recordsCache = (list || []).slice().sort((a,b) => (a.date < b.date ? 1 : -1)); // 최신 위로
+  if (recordsCache.length === 0){
+    empty.classList.remove("hidden");
+    layout.classList.add("hidden");
+    return;
   }
+  empty.classList.add("hidden");
+  layout.classList.remove("hidden");
+  side.innerHTML = recordsCache.map(r => {
+    const warn = (r.warnings || []).length > 0;
+    return `<button class="date-btn" data-id="${r.id}"><span class="d-dot ${warn?"warn":""}"></span>${r.date}</button>`;
+  }).join("");
+  side.querySelectorAll(".date-btn").forEach(b => {
+    b.onclick = () => selectDay(parseInt(b.dataset.id));
+  });
+  // 이전 선택 유지, 없으면 최신 자동 선택
+  const keep = recordsCache.find(r => r.id === selectedId);
+  selectDay(keep ? selectedId : recordsCache[0].id);
+}
+
+function selectDay(id){
+  selectedId = id;
+  const r = recordsCache.find(x => x.id === id);
+  document.querySelectorAll(".date-btn").forEach(b =>
+    b.classList.toggle("active", parseInt(b.dataset.id) === id));
+  if (!r){ $("dayDetail").innerHTML = `<div class="detail-empty">기록을 찾을 수 없어요.</div>`; return; }
+  const chip = (c) => `<span class="chip ${statusClass(c)}">${c}</span>`;
+  const warns = r.warnings || [];
+  $("dayDetail").innerHTML = `
+    <div class="detail-head"><span class="detail-date">${r.date}</span>${chip(r.bmi_category)}</div>
+    <div class="detail-grid">
+      <div class="dfield"><div class="df-label">체중</div><div class="df-val">${r.weight}<span class="df-unit">kg</span></div></div>
+      <div class="dfield"><div class="df-label">키</div><div class="df-val">${r.height}<span class="df-unit">cm</span></div></div>
+      <div class="dfield"><div class="df-label">BMI</div><div class="df-val">${r.bmi}</div></div>
+      <div class="dfield"><div class="df-label">혈압</div><div class="df-val">${r.systolic}/${r.diastolic} ${chip(r.bp_category)}</div></div>
+      <div class="dfield"><div class="df-label">공복혈당</div><div class="df-val">${r.blood_sugar}<span class="df-unit">mg/dL</span> ${chip(r.sugar_category)}</div></div>
+      <div class="dfield"><div class="df-label">걸음 / 수면</div><div class="df-val">${r.steps}<span class="df-unit">보</span> · ${r.sleep_hours}<span class="df-unit">h</span></div></div>
+    </div>
+    ${warns.length ? `<div class="detail-warns">⚠ ${warns.join(", ")}</div>` : ""}
+    ${r.memo ? `<div class="detail-memo"><span class="dm-label">메모</span>${r.memo}</div>` : ""}
+    <button class="btn-del" data-id="${r.id}">이 기록 삭제</button>`;
+  $("dayDetail").querySelector(".btn-del").onclick = () => delRecord(r.id);
+}
+
+async function delRecord(id){
+  if (!confirm("이 기록을 삭제할까요?")) return;
+  const res = await fetch("/records/" + id, {method:"DELETE", headers:authHead()});
+  if (res.status === 401){ showAuth(); return; }
+  selectedId = null;
+  loadAll();
 }
 
 $("recForm").addEventListener("submit", async (e) => {
