@@ -23,7 +23,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)  # 고유
     hashed_password = Column(String, nullable=False)                    # 암호화된 비번
-    role = Column(String, default="user", nullable=False)              # user / admin
+    role = Column(String, default="user", nullable=False)              # user / admin / superadmin
+    created_at = Column(DateTime, default=datetime.now)                # 가입일시
 
     # 이 사용자가 가진 기록들 (1:N)
     records = relationship("Record", back_populates="owner", cascade="all, delete-orphan")

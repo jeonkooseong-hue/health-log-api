@@ -7,6 +7,7 @@ CREATE TABLE users (
     username        VARCHAR(50)  NOT NULL,
     hashed_password VARCHAR(255) NOT NULL,
     role            VARCHAR(20)  NOT NULL DEFAULT 'user',  -- user / admin / superadmin
+    created_at      DATETIME,                              -- 가입일시
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

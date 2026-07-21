@@ -12,6 +12,7 @@ erDiagram
         string username UK "로그인 아이디 (고유)"
         string hashed_password "bcrypt 해시된 비밀번호"
         string role "권한: user / admin / superadmin"
+        datetime created_at "가입일시"
     }
 
     RECORD {
@@ -55,6 +56,7 @@ erDiagram
 | username | String | UK | API 입력 | 로그인 아이디, 중복 불가 |
 | hashed_password | String | | 서버 처리 | 평문 비번을 bcrypt로 해시해 저장 |
 | role | String | | 서버 처리 | `user`/`admin`/`superadmin`. 기본 `user`, **첫 가입자는 `superadmin`** |
+| created_at | DateTime | | 자동 | 가입일시 |
 
 ## 3. RECORD 테이블
 

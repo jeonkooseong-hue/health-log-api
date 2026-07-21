@@ -306,11 +306,66 @@ def admin_users(admin: User = Depends(get_current_admin), db: Session = Depends(
     result = []
     for u in users:
         record_count = db.query(Record).filter(Record.user_id == u.id).count()
+        last_login = db.query(ActivityLog).filter(
+            ActivityLog.user_id == u.id, ActivityLog.action == "login"
+        ).order_by(ActivityLog.id.desc()).first()
         result.append({
             "id": u.id, "username": u.username, "role": u.role,
             "record_count": record_count,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_login": last_login.created_at.isoformat() if (last_login and last_login.created_at) else None,
         })
     return {"count": len(result), "users": result}
+
+
+@app.get("/admin/users/{user_id}")
+def admin_user_detail(user_id: int,
+                      admin: User = Depends(get_current_admin),
+                      db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    records = db.query(Record).filter(Record.user_id == u.id).order_by(Record.date.desc()).all()
+    logs = db.query(ActivityLog).filter(ActivityLog.user_id == u.id).order_by(ActivityLog.id.desc()).limit(10).all()
+
+    stats = None
+    if records:
+        weights = [r.weight for r in records]
+        bmis = [r.bmi for r in records if r.bmi is not None]
+        stats = {
+            "avg_weight": round(sum(weights) / len(weights), 1),
+            "avg_bmi": round(sum(bmis) / len(bmis), 1) if bmis else None,
+            "latest_date": records[0].date,
+        }
+    return {
+        "id": u.id, "username": u.username, "role": u.role,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+        "record_count": len(records),
+        "stats": stats,
+        "records": [record_to_dict(r) for r in records[:10]],
+        "recent_logs": [{
+            "action": l.action, "detail": l.detail,
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        } for l in logs],
+    }
+
+
+@app.delete("/admin/users/{user_id}")
+def admin_delete_user(user_id: int,
+                      admin: User = Depends(get_current_superadmin),
+                      db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    if u.id == admin.id:
+        raise HTTPException(status_code=400, detail="자기 자신은 삭제할 수 없습니다")
+    if u.role == "superadmin" and db.query(User).filter(User.role == "superadmin").count() <= 1:
+        raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 삭제할 수 없습니다")
+    username = u.username
+    db.delete(u)  # relationship cascade로 기록·로그도 함께 삭제
+    db.commit()
+    log_action(db, "delete_user", user=admin, detail=f"deleted {username}")
+    return {"message": "삭제됨", "id": user_id, "username": username}
 
 
 @app.get("/admin/logs")
