@@ -69,6 +69,10 @@
   .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
     background:var(--field);color:var(--muted)}
   .role-badge.admin{background:var(--brand);color:#fff}
+  .role-badge.superadmin{background:var(--bad);color:#fff}
+  .role-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);
+    color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
+  .muted-dash{color:var(--muted);font-size:12px}
   td.act{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
 
   /* activity feed */
@@ -150,7 +154,7 @@
       <h2>전체 사용자</h2>
       <div class="tbl-scroll">
         <table>
-          <thead><tr><th>ID</th><th>아이디</th><th>권한</th><th>기록 수</th></tr></thead>
+          <thead><tr><th>ID</th><th>아이디</th><th>권한</th><th>기록 수</th><th>관리</th></tr></thead>
           <tbody id="usersBody"></tbody>
         </table>
       </div>
@@ -167,6 +171,7 @@
 const $ = (id) => document.getElementById(id);
 const token = () => localStorage.getItem("token");
 const authHead = () => ({ "Authorization": "Bearer " + token() });
+let myRole = "";
 
 function showGuard(title, msg){
   $("guard").classList.remove("hidden");
@@ -205,13 +210,14 @@ async function checkAuth(){
   const meRes = await fetch("/me", {headers:authHead()});
   if (meRes.status === 401){ showGuard("관리자 로그인", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
   const me = await meRes.json();
-  if (me.role !== "admin"){
+  if (me.role !== "admin" && me.role !== "superadmin"){
     showGuard("관리자 권한이 없어요", `${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`);
     return;
   }
+  myRole = me.role;
   $("guard").classList.add("hidden");
   $("board").classList.remove("hidden");
-  $("adminName").textContent = me.username;
+  $("adminName").textContent = `${me.username} · ${me.role}`;
   loadBoard();
 }
 
@@ -254,10 +260,20 @@ async function loadBoard(){
   bars($("actionBars"), actionItems);
 
   // 사용자 표
-  $("usersBody").innerHTML = users.users.map(u =>
-    `<tr><td class="num">${u.id}</td><td>${u.username || "—"}</td>`+
-    `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
-    `<td class="num">${u.record_count}</td></tr>`).join("");
+  const opt = (cur, v) => `<option value="${v}" ${cur===v?"selected":""}>${v}</option>`;
+  $("usersBody").innerHTML = users.users.map(u => {
+    const manage = (myRole === "superadmin")
+      ? `<select class="role-sel" data-id="${u.id}">${opt(u.role,"user")}${opt(u.role,"admin")}${opt(u.role,"superadmin")}</select>`
+      : `<span class="muted-dash">조회 전용</span>`;
+    return `<tr><td class="num">${u.id}</td><td>${u.username || "—"}</td>`+
+      `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
+      `<td class="num">${u.record_count}</td>`+
+      `<td>${manage}</td></tr>`;
+  }).join("");
+  if (myRole === "superadmin"){
+    document.querySelectorAll(".role-sel").forEach(s =>
+      s.onchange = () => setRole(parseInt(s.dataset.id), s.value));
+  }
 
   // 활동 피드 (최근 20)
   $("feed").innerHTML = logs.logs.slice(0, 20).map(l => {
@@ -269,6 +285,14 @@ async function loadBoard(){
       <span class="feed-time">${t}</span>
     </div>`;
   }).join("");
+}
+
+async function setRole(id, role){
+  const res = await fetch(`/admin/users/${id}/role`, {method:"PUT",
+    headers:{"Content-Type":"application/json", ...authHead()},
+    body: JSON.stringify({role})});
+  if (!res.ok){ const e = await res.json(); alert(e.detail || "권한 변경 실패"); }
+  loadBoard();
 }
 
 checkAuth();

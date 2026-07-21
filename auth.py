@@ -57,7 +57,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
-    """관리자만 통과. 아니면 403."""
-    if current_user.role != "admin":
+    """관리자(admin) 또는 슈퍼관리자(superadmin)만 통과. 대시보드 조회용."""
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="관리자 권한이 필요합니다")
+    return current_user
+
+
+def get_current_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    """슈퍼관리자(superadmin)만 통과. 권한 변경 등 관리 행위용."""
+    if current_user.role != "superadmin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="슈퍼관리자 권한이 필요합니다")
     return current_user

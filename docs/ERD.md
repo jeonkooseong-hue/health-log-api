@@ -54,7 +54,7 @@ erDiagram
 | id | Integer | PK | 자동 | 사용자 고유번호 |
 | username | String | UK | API 입력 | 로그인 아이디, 중복 불가 |
 | hashed_password | String | | 서버 처리 | 평문 비번을 bcrypt로 해시해 저장 |
-| role | String | | 서버 처리 | `user` 기본, **첫 가입자는 `admin`** |
+| role | String | | 서버 처리 | `user`/`admin`/`superadmin`. 기본 `user`, **첫 가입자는 `superadmin`** |
 
 ## 3. RECORD 테이블
 

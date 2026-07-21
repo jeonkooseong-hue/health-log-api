@@ -8,7 +8,7 @@ import json
 
 from database import Base, engine, get_db, User, Record, ActivityLog
 from auth import (hash_password, verify_password, create_access_token,
-                 get_current_user, get_current_admin)
+                 get_current_user, get_current_admin, get_current_superadmin)
 
 # 서버 시작 시 표(테이블)가 없으면 만든다
 Base.metadata.create_all(bind=engine)
@@ -152,9 +152,9 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.username == user.username).first()
     if exists:
         raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
-    # 첫 번째 가입자는 자동으로 관리자
+    # 첫 번째 가입자는 자동으로 슈퍼관리자 (부트스트랩)
     is_first = db.query(User).count() == 0
-    role = "admin" if is_first else "user"
+    role = "superadmin" if is_first else "user"
     new_user = User(username=user.username,
                     hashed_password=hash_password(user.password),
                     role=role)
@@ -333,6 +333,32 @@ def admin_stats(admin: User = Depends(get_current_admin), db: Session = Depends(
         "total_records": db.query(Record).count(),
         "total_logs": db.query(ActivityLog).count(),
     }
+
+
+class RoleUpdate(BaseModel):
+    role: str  # "user" / "admin" / "superadmin"
+
+
+@app.put("/admin/users/{user_id}/role")
+def admin_set_role(user_id: int, body: RoleUpdate,
+                   admin: User = Depends(get_current_superadmin),
+                   db: Session = Depends(get_db)):
+    if body.role not in ("user", "admin", "superadmin"):
+        raise HTTPException(status_code=400, detail="role은 user, admin, superadmin 중 하나여야 합니다")
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    # 자기 자신 강등 방지 (락아웃 예방)
+    if target.id == admin.id and body.role != "superadmin":
+        raise HTTPException(status_code=400, detail="자기 자신의 슈퍼관리자 권한은 해제할 수 없습니다")
+    # 마지막 슈퍼관리자 강등 방지
+    if target.role == "superadmin" and body.role != "superadmin":
+        if db.query(User).filter(User.role == "superadmin").count() <= 1:
+            raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 강등할 수 없습니다")
+    target.role = body.role
+    db.commit()
+    log_action(db, "change_role", user=admin, detail=f"user#{target.id} -> {body.role}")
+    return {"id": target.id, "username": target.username, "role": target.role}
 
 
 # ===== HTML 화면 =====
