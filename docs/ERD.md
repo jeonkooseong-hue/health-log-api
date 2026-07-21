@@ -11,7 +11,7 @@ erDiagram
         int id PK "사용자 고유번호"
         string username UK "로그인 아이디 (고유)"
         string hashed_password "bcrypt 해시된 비밀번호"
-        string role "권한: user / admin"
+        string role "권한: user / admin / superadmin"
     }
 
     RECORD {
@@ -112,11 +112,19 @@ DB 표(저장 구조)와 API 스키마(Pydantic)는 **일부러 다르다**.
 
 **핵심**: API 입력에 없는 `user_id`(인증), 계산값(bmi 등), `role`(정책), 로그를 **서버가 채워서** DB에 저장한다. 그래서 DB 스키마와 API 스키마는 1:1이 아니다.
 
-## 6. 관리자 (admin)
+## 6. 권한 체계 (role)
 
-- 첫 가입자는 자동으로 `role=admin`.
-- 관리자 전용 창구: `GET /admin/users`, `GET /admin/logs`, `GET /admin/stats` (일반 사용자는 403).
-- `/ui` 화면에서 관리자로 로그인하면 대시보드(사용자 목록·활동 로그)가 표시된다.
+3단계: `user` < `admin` < `superadmin`. 첫 가입자는 자동으로 `superadmin`.
+
+| 역할 | 권한 |
+|------|------|
+| user | 본인 기록만 CRUD |
+| admin | 관리자 대시보드 **조회** (사용자·로그·통계). 권한 변경 불가 |
+| superadmin | 조회 + **권한 변경(승격/강등)**. 마지막 superadmin은 강등 불가 |
+
+- 조회 창구: `GET /admin/users`, `GET /admin/logs`, `GET /admin/stats` (admin·superadmin, 그 외 403)
+- 권한 변경: `PUT /admin/users/{id}/role` (superadmin 전용)
+- `/dashboard` 페이지에서 관리자 대시보드 표시(차트·사용자표·활동피드). superadmin은 사용자 권한 변경 가능.
 
 ## 7. 관련 파일
 
