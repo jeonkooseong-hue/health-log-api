@@ -94,7 +94,7 @@ DB 표(저장 구조)와 API 스키마(Pydantic)는 **일부러 다르다**.
 |----------------------|----|----------------|
 | username | → | username |
 | password (평문) | → bcrypt 해시 → | hashed_password |
-| — | → 첫 가입자면 admin → | role |
+| — | → 첫 가입자면 superadmin → | role |
 
 ### 로그인 — `OAuth2PasswordRequestForm` → JWT
 
