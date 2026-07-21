@@ -5,11 +5,13 @@
 ```mermaid
 erDiagram
     USER ||--o{ RECORD : "가진다 (1:N)"
+    USER ||--o{ ACTIVITY_LOG : "남긴다 (1:N)"
 
     USER {
         int id PK "사용자 고유번호"
         string username UK "로그인 아이디 (고유)"
         string hashed_password "bcrypt 해시된 비밀번호"
+        string role "권한: user / admin"
     }
 
     RECORD {
@@ -30,44 +32,61 @@ erDiagram
         string sugar_category "계산값"
         string warnings "계산값 (JSON 문자열)"
     }
+
+    ACTIVITY_LOG {
+        int id PK "로그 고유번호"
+        int user_id FK "USER.id 참조 (행위자)"
+        string username "이름 스냅샷"
+        string action "signup/login/create_record 등"
+        string detail "부가 설명"
+        datetime created_at "발생 시각"
+    }
 ```
 
-- **관계**: 사용자 1명(`USER`)이 여러 기록(`RECORD`)을 가진다 (1:N).
-- **PK** = Primary Key(고유 식별자), **FK** = Foreign Key(다른 표 참조), **UK** = Unique(중복 불가).
-- 실제 정의 위치: [`database.py`](../database.py)
+- **관계**: 사용자(`USER`) 1명이 여러 기록(`RECORD`)과 여러 활동 로그(`ACTIVITY_LOG`)를 가진다 (각각 1:N).
+- **PK** = Primary Key, **FK** = Foreign Key, **UK** = Unique.
+- 실제 정의 위치: [`database.py`](../database.py) · DDL: [`schema.sql`](schema.sql)
 
 ## 2. USER 테이블
 
 | 칼럼 | 타입 | 키 | 출처 | 설명 |
 |------|------|----|------|------|
-| id | Integer | PK | 자동 | 사용자 고유번호 (auto increment) |
+| id | Integer | PK | 자동 | 사용자 고유번호 |
 | username | String | UK | API 입력 | 로그인 아이디, 중복 불가 |
-| hashed_password | String | | 서버 처리 | 입력받은 평문 비번을 bcrypt로 해시해 저장 |
+| hashed_password | String | | 서버 처리 | 평문 비번을 bcrypt로 해시해 저장 |
+| role | String | | 서버 처리 | `user` 기본, **첫 가입자는 `admin`** |
 
 ## 3. RECORD 테이블
 
 | 칼럼 | 타입 | 키 | 출처 | 설명 |
 |------|------|----|------|------|
 | id | Integer | PK | 자동 | 기록 고유번호 |
-| user_id | Integer | FK | 인증 토큰 | 로그인한 사용자의 id (토큰에서 추출) |
+| user_id | Integer | FK | 인증 토큰 | 로그인한 사용자 id (토큰에서 추출) |
 | date | String | | API 입력 | 측정일 |
-| weight | Float | | API 입력 | 몸무게(kg) |
-| height | Float | | API 입력 | 키(cm) |
-| systolic | Integer | | API 입력 | 수축기 혈압 |
-| diastolic | Integer | | API 입력 | 이완기 혈압 |
+| weight / height | Float | | API 입력 | 몸무게 / 키 |
+| systolic / diastolic | Integer | | API 입력 | 수축기 / 이완기 혈압 |
 | blood_sugar | Integer | | API 입력 | 공복 혈당 |
-| steps | Integer | | API 입력(기본 0) | 걸음 수 |
-| sleep_hours | Float | | API 입력(기본 0.0) | 수면 시간 |
-| memo | String | | API 입력(기본 "") | 메모 |
+| steps / sleep_hours / memo | Int/Float/String | | API 입력(기본값) | 선택 항목 |
 | bmi | Float | | 서버 계산 | weight / (height/100)² |
 | bmi_category | String | | 서버 계산 | 저체중/정상/과체중/비만 |
 | bp_category | String | | 서버 계산 | 정상/주의/고혈압 |
 | sugar_category | String | | 서버 계산 | 정상/공복혈당장애/당뇨 의심 |
-| warnings | Text | | 서버 계산 | 경고 목록 (JSON 문자열로 저장) |
+| warnings | Text | | 서버 계산 | 경고 목록 (JSON 문자열) |
 
-## 4. DB ↔ API 스키마 매핑
+## 4. ACTIVITY_LOG 테이블
 
-DB 표(저장 구조)와 API 스키마(Pydantic, 요청/응답)는 **일부러 다르다**. 아래가 그 연결.
+| 칼럼 | 타입 | 키 | 출처 | 설명 |
+|------|------|----|------|------|
+| id | Integer | PK | 자동 | 로그 고유번호 |
+| user_id | Integer | FK | 서버 처리 | 행위자 (실패 로그인은 NULL 가능) |
+| username | String | | 서버 처리 | 이름 스냅샷 |
+| action | String | | 서버 처리 | signup/login/login_failed/create_record/update_record/delete_record |
+| detail | String | | 서버 처리 | 부가 설명 |
+| created_at | DateTime | | 자동 | 발생 시각 |
+
+## 5. DB ↔ API 스키마 매핑
+
+DB 표(저장 구조)와 API 스키마(Pydantic)는 **일부러 다르다**.
 
 ### 회원가입 — `UserCreate` → `USER`
 
@@ -75,13 +94,13 @@ DB 표(저장 구조)와 API 스키마(Pydantic, 요청/응답)는 **일부러 �
 |----------------------|----|----------------|
 | username | → | username |
 | password (평문) | → bcrypt 해시 → | hashed_password |
-| — | | id (자동 생성) |
+| — | → 첫 가입자면 admin → | role |
 
 ### 로그인 — `OAuth2PasswordRequestForm` → JWT
 
-| API 입력 | 처리 | 응답 |
+| API 입력 | 처리 | 결과 |
 |---------|------|------|
-| username, password | DB 해시와 대조(verify) | JWT access_token 발급 |
+| username, password | DB 해시와 대조 | JWT 토큰 발급 + ACTIVITY_LOG 기록 |
 
 ### 기록 추가 — `RecordIn` → `RECORD`
 
@@ -91,12 +110,19 @@ DB 표(저장 구조)와 API 스키마(Pydantic, 요청/응답)는 **일부러 �
 | — (토큰에서) | → | user_id |
 | — | → 서버 계산 → | bmi, bmi_category, bp_category, sugar_category, warnings |
 
-**핵심**: API 입력에는 없는 `user_id`(인증)와 계산값(bmi 등)을 **서버가 채워서** DB에 저장한다. 그래서 DB 스키마와 API 스키마가 1:1이 아니다.
+**핵심**: API 입력에 없는 `user_id`(인증), 계산값(bmi 등), `role`(정책), 로그를 **서버가 채워서** DB에 저장한다. 그래서 DB 스키마와 API 스키마는 1:1이 아니다.
 
-## 5. 관련 파일
+## 6. 관리자 (admin)
+
+- 첫 가입자는 자동으로 `role=admin`.
+- 관리자 전용 창구: `GET /admin/users`, `GET /admin/logs`, `GET /admin/stats` (일반 사용자는 403).
+- `/ui` 화면에서 관리자로 로그인하면 대시보드(사용자 목록·활동 로그)가 표시된다.
+
+## 7. 관련 파일
 
 | 파일 | 역할 |
 |------|------|
-| [`database.py`](../database.py) | DB 연결 + 표(User, Record) 정의 = ERD 구현체 |
+| [`database.py`](../database.py) | 표(User, Record, ActivityLog) 정의 = ERD 구현체 |
 | [`main.py`](../main.py) | API 스키마(Pydantic) + 엔드포인트 |
-| [`auth.py`](../auth.py) | bcrypt 해시, JWT 토큰, 로그인 확인 |
+| [`auth.py`](../auth.py) | bcrypt 해시, JWT 토큰, 로그인/관리자 확인 |
+| [`schema.sql`](schema.sql) | ErdCloud import용 DDL |

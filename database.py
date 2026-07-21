@@ -1,5 +1,6 @@
 """데이터베이스 설정 + 표(테이블) 정의"""
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Text
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Text, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 # SQLite 파일 하나로 도는 DB (health.db)
@@ -22,9 +23,12 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)  # 고유
     hashed_password = Column(String, nullable=False)                    # 암호화된 비번
+    role = Column(String, default="user", nullable=False)              # user / admin
 
-    # 이 사용자가 가진 기록들 (1:N 관계)
+    # 이 사용자가 가진 기록들 (1:N)
     records = relationship("Record", back_populates="owner", cascade="all, delete-orphan")
+    # 이 사용자의 활동 로그들 (1:N)
+    logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
 
 
 class Record(Base):
@@ -51,8 +55,21 @@ class Record(Base):
     sugar_category = Column(String)
     warnings = Column(Text, default="[]")  # 경고 목록을 JSON 문자열로 저장
 
-    # 이 기록의 주인 사용자
     owner = relationship("User", back_populates="records")
+
+
+class ActivityLog(Base):
+    """활동 로그 표 (로그인/기록 변경 등 기록)"""
+    __tablename__ = "activity_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 누가 (실패한 로그인은 없을 수 있음)
+    username = Column(String)                                         # 로그용 이름 스냅샷
+    action = Column(String, nullable=False)                          # signup / login / login_failed / create_record ...
+    detail = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)              # 언제
+
+    user = relationship("User", back_populates="logs")
 
 
 def get_db():
