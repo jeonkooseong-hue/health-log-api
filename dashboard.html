@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>관리자 대시보드 · 마이 헬스 로그</title>
+<style>
+  :root{
+    --bg:#eef2f5; --card:#ffffff; --ink:#16232e; --muted:#64748b;
+    --line:#e2e8f0; --field:#f8fafc;
+    --brand:#0f766e; --brand-ink:#0b5a54; --brand-soft:#d5ece9;
+    --ok:#15803d; --ok-bg:#e7f6ec; --bad:#b91c1c; --bad-bg:#fdeaea;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+    --radius:14px; --shadow:0 1px 2px rgba(16,35,46,.06),0 8px 24px rgba(16,35,46,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1317; --card:#161d23; --ink:#e6edf3; --muted:#8b98a5;
+      --line:#26303a; --field:#0f161b;
+      --brand:#2dd4bf; --brand-ink:#5eead4; --brand-soft:#12352f;
+      --ok:#4ade80; --ok-bg:#13251a; --bad:#f87171; --bad-bg:#2a1516;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 64px}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:6px 2px 22px;flex-wrap:wrap}
+  .title{display:flex;align-items:center;gap:10px}
+  .title h1{font-size:18px;margin:0;letter-spacing:-.01em}
+  .badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
+    background:var(--brand);color:#fff}
+  .actions{display:flex;gap:8px}
+  .btn{text-decoration:none;font-size:13px;padding:7px 13px;border-radius:9px;
+    border:1px solid var(--line);color:var(--muted);background:var(--card);cursor:pointer;font-family:inherit}
+  .btn:hover{color:var(--ink);border-color:var(--muted)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px}
+  .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:8px;
+    letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+    margin:0 0 16px;font-weight:600}
+
+  /* bar chart */
+  .bars{display:flex;flex-direction:column;gap:10px}
+  .bar-row{display:grid;grid-template-columns:110px 1fr 42px;align-items:center;gap:10px;font-size:13px}
+  .bar-label{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{background:var(--field);border-radius:6px;height:22px;overflow:hidden}
+  .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;
+    transition:width .5s ease}
+  .bar-val{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
+  .tbl-scroll{overflow-x:auto;margin:0 -18px -18px;padding:0 18px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
+    background:var(--field);color:var(--muted)}
+  .role-badge.admin{background:var(--brand);color:#fff}
+  td.act{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
+
+  /* activity feed */
+  .feed{display:flex;flex-direction:column;gap:0}
+  .feed-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .feed-item:last-child{border-bottom:none}
+  .feed-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
+  .feed-dot.fail{background:var(--bad)}
+  .feed-main{flex:1;min-width:0}
+  .feed-main b{font-weight:600}
+  .feed-time{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
+  .guard{max-width:420px;margin:12vh auto;text-align:center;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 28px}
+  .guard h1{font-size:19px;margin:0 0 8px}
+  .guard p{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .hidden{display:none}
+  @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 권한 없을 때 -->
+  <section class="guard hidden" id="guard">
+    <h1 id="guardTitle">관리자 전용 페이지</h1>
+    <p id="guardMsg">이 페이지는 관리자만 볼 수 있어요.</p>
+    <a class="btn" href="/ui">기록 화면으로 돌아가기</a>
+  </section>
+
+  <!-- 대시보드 본체 -->
+  <div class="hidden" id="board">
+    <header>
+      <div class="title">
+        <h1>관리자 대시보드</h1>
+        <span class="badge" id="adminName">admin</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/ui">기록 화면</a>
+        <button class="btn" id="logoutBtn">로그아웃</button>
+      </div>
+    </header>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="cols">
+      <section class="card">
+        <h2>사용자별 기록 수</h2>
+        <div class="bars" id="userBars"></div>
+      </section>
+      <section class="card">
+        <h2>동작별 활동 수</h2>
+        <div class="bars" id="actionBars"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>전체 사용자</h2>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>ID</th><th>아이디</th><th>권한</th><th>기록 수</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>최근 활동</h2>
+      <div class="feed" id="feed"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const token = () => localStorage.getItem("token");
+const authHead = () => ({ "Authorization": "Bearer " + token() });
+
+function showGuard(title, msg){
+  $("guard").classList.remove("hidden");
+  $("board").classList.add("hidden");
+  if (title) $("guardTitle").textContent = title;
+  if (msg) $("guardMsg").textContent = msg;
+}
+
+$("logoutBtn").onclick = () => {
+  localStorage.removeItem("token"); localStorage.removeItem("name");
+  location.href = "/ui";
+};
+
+function bars(container, items){
+  const max = Math.max(1, ...items.map(i => i.value));
+  container.innerHTML = items.length ? items.map(i =>
+    `<div class="bar-row">
+       <span class="bar-label">${i.label}</span>
+       <span class="bar-track"><span class="bar-fill" style="width:${(i.value/max*100)}%"></span></span>
+       <span class="bar-val">${i.value}</span>
+     </div>`).join("") : `<div style="color:var(--muted);font-size:13px">데이터 없음</div>`;
+}
+
+async function init(){
+  if (!token()){ showGuard("로그인이 필요해요", "관리자 계정으로 로그인한 뒤 다시 열어 주세요."); return; }
+
+  const meRes = await fetch("/me", {headers:authHead()});
+  if (meRes.status === 401){ showGuard("로그인이 필요해요", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
+  const me = await meRes.json();
+  if (me.role !== "admin"){ showGuard(); return; }
+
+  $("board").classList.remove("hidden");
+  $("adminName").textContent = me.username;
+
+  const [stats, users, logs] = await Promise.all([
+    fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/users", {headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/logs?limit=200", {headers:authHead()}).then(r=>r.json()),
+  ]);
+
+  const adminCount = users.users.filter(u => u.role === "admin").length;
+  $("kpis").innerHTML = `
+    <div class="kpi"><div class="k-label">사용자</div><div class="k-val">${stats.total_users}</div></div>
+    <div class="kpi"><div class="k-label">관리자</div><div class="k-val">${adminCount}</div></div>
+    <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${stats.total_records}</div></div>
+    <div class="kpi"><div class="k-label">활동 로그</div><div class="k-val">${stats.total_logs}</div></div>`;
+
+  // 사용자별 기록 수 (많은 순)
+  const userItems = users.users
+    .map(u => ({label: u.username || "(빈 이름)", value: u.record_count}))
+    .sort((a,b) => b.value - a.value).slice(0, 8);
+  bars($("userBars"), userItems);
+
+  // 동작별 활동 수
+  const counts = {};
+  for (const l of logs.logs){ counts[l.action] = (counts[l.action] || 0) + 1; }
+  const actionItems = Object.entries(counts)
+    .map(([label, value]) => ({label, value}))
+    .sort((a,b) => b.value - a.value);
+  bars($("actionBars"), actionItems);
+
+  // 사용자 표
+  $("usersBody").innerHTML = users.users.map(u =>
+    `<tr><td class="num">${u.id}</td><td>${u.username || "—"}</td>`+
+    `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
+    `<td class="num">${u.record_count}</td></tr>`).join("");
+
+  // 활동 피드 (최근 20)
+  $("feed").innerHTML = logs.logs.slice(0, 20).map(l => {
+    const fail = l.action === "login_failed";
+    const t = (l.created_at || "").replace("T", " ").slice(0, 19);
+    return `<div class="feed-item">
+      <span class="feed-dot ${fail ? "fail" : ""}"></span>
+      <span class="feed-main"><b>${l.username || "—"}</b> · ${l.action}${l.detail ? " ("+l.detail+")" : ""}</span>
+      <span class="feed-time">${t}</span>
+    </div>`;
+  }).join("");
+}
+
+init();
+</script>
+</body>
+</html>

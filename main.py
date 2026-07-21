@@ -339,11 +339,19 @@ def admin_stats(admin: User = Depends(get_current_admin), db: Session = Depends(
 
 import os
 
-PAGE_PATH = os.path.join(os.path.dirname(__file__), "page.html")
+BASE_DIR = os.path.dirname(__file__)
+PAGE_PATH = os.path.join(BASE_DIR, "page.html")
+DASHBOARD_PATH = os.path.join(BASE_DIR, "dashboard.html")
 
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui():
     with open(PAGE_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    with open(DASHBOARD_PATH, "r", encoding="utf-8") as f:
         return f.read()
 

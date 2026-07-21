@@ -112,6 +112,12 @@
   .warns{color:var(--bad);font-size:12px}
 
   .empty{text-align:center;color:var(--muted);font-size:14px;padding:28px 0}
+  .admin-link{display:flex;flex-direction:column;gap:3px;text-decoration:none;color:var(--ink);
+    background:var(--card);border:1px solid var(--brand);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px}
+  .admin-link:hover{background:var(--field)}
+  .admin-link span:first-child{font-weight:700;font-size:15px}
+  .admin-link .arrow{font-size:12px;color:var(--brand);font-weight:600}
   h3.sub{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
     margin:22px 0 8px;font-weight:600}
   .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
@@ -173,7 +179,10 @@
           <label><span>키 (cm)</span><input name="height" type="number" step="0.1" required></label>
           <label><span>수축기 혈압</span><input name="systolic" type="number" required></label>
           <label><span>이완기 혈압</span><input name="diastolic" type="number" required></label>
-          <label class="full"><span>공복 혈당 (mg/dL)</span><input name="blood_sugar" type="number" required></label>
+          <label><span>공복 혈당 (mg/dL)</span><input name="blood_sugar" type="number" required></label>
+          <label><span>걸음 수 (선택)</span><input name="steps" type="number" min="0"></label>
+          <label><span>수면 시간 (선택)</span><input name="sleep_hours" type="number" step="0.1" min="0"></label>
+          <label class="full"><span>메모 (선택)</span><input name="memo" type="text" placeholder="오늘 컨디션, 특이사항 등"></label>
         </div>
         <button class="primary" type="submit" style="width:100%">기록 추가</button>
       </form>
@@ -184,7 +193,7 @@
       <div class="tbl-scroll">
         <table>
           <thead><tr>
-            <th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th>
+            <th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th><th>경고</th>
           </tr></thead>
           <tbody id="rows"></tbody>
         </table>
@@ -192,25 +201,11 @@
       <div class="empty hidden" id="emptyRows">아직 기록이 없어요. 위에서 첫 기록을 추가해 보세요.</div>
     </section>
 
-    <!-- 관리자 전용 -->
-    <section class="card hidden" id="adminCard">
-      <h2>관리자 · 대시보드</h2>
-      <div class="kpis" id="adminStats" style="margin-bottom:18px"></div>
-      <h3 class="sub">전체 사용자</h3>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>ID</th><th>아이디</th><th>권한</th><th>기록 수</th></tr></thead>
-          <tbody id="adminUsers"></tbody>
-        </table>
-      </div>
-      <h3 class="sub">최근 활동 로그</h3>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>시각</th><th>사용자</th><th>동작</th><th>상세</th></tr></thead>
-          <tbody id="adminLogs"></tbody>
-        </table>
-      </div>
-    </section>
+    <!-- 관리자만 보이는 대시보드 링크 -->
+    <a class="admin-link hidden" id="adminLink" href="/dashboard">
+      <span>관리자 대시보드</span>
+      <span class="arrow">전체 사용자 · 활동 로그 · 통계 보기 →</span>
+    </a>
 
   </main>
 </div>
@@ -280,28 +275,8 @@ async function loadAll(){
   renderReport(await repRes.json());
 
   const me = await meRes.json();
-  if (me.role === "admin") { $("adminCard").classList.remove("hidden"); loadAdmin(); }
-  else { $("adminCard").classList.add("hidden"); }
-}
-
-async function loadAdmin(){
-  const [s, u, l] = await Promise.all([
-    fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/users", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/logs?limit=30", {headers:authHead()}).then(r=>r.json()),
-  ]);
-  $("adminStats").innerHTML = `
-    <div class="kpi"><div class="k-label">사용자</div><div class="k-val">${s.total_users}</div></div>
-    <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${s.total_records}</div></div>
-    <div class="kpi"><div class="k-label">활동 로그</div><div class="k-val">${s.total_logs}</div></div>`;
-  $("adminUsers").innerHTML = u.users.map(x =>
-    `<tr><td class="num">${x.id}</td><td>${x.username}</td>`+
-    `<td><span class="role-badge ${x.role}">${x.role}</span></td>`+
-    `<td class="num">${x.record_count}</td></tr>`).join("");
-  $("adminLogs").innerHTML = l.logs.map(x =>
-    `<tr><td class="num">${(x.created_at||"").replace("T"," ").slice(0,19)}</td>`+
-    `<td>${x.username||"—"}</td><td class="act">${x.action}</td>`+
-    `<td>${x.detail||""}</td></tr>`).join("");
+  if (me.role === "admin") $("adminLink").classList.remove("hidden");
+  else $("adminLink").classList.add("hidden");
 }
 
 function renderKpis(s){
@@ -358,6 +333,7 @@ function renderRecords(list){
       `<td><span class="chip ${statusClass(r.bmi_category)}">${r.bmi_category}</span></td>`+
       `<td><span class="chip ${statusClass(r.bp_category)}">${r.bp_category}</span></td>`+
       `<td><span class="chip ${statusClass(r.sugar_category)}">${r.sugar_category}</span></td>`+
+      `<td>${r.memo || "—"}</td>`+
       `<td class="warns">${(r.warnings||[]).join(", ") || "—"}</td>`;
     rows.appendChild(tr);
   }
@@ -373,6 +349,9 @@ $("recForm").addEventListener("submit", async (e) => {
     systolic:parseInt(f.get("systolic")),
     diastolic:parseInt(f.get("diastolic")),
     blood_sugar:parseInt(f.get("blood_sugar")),
+    steps: parseInt(f.get("steps")) || 0,
+    sleep_hours: parseFloat(f.get("sleep_hours")) || 0,
+    memo: f.get("memo") || "",
   };
   const res = await fetch("/records", {
     method:"POST",
