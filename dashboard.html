@@ -32,91 +32,104 @@
     padding:6px 2px 22px;flex-wrap:wrap}
   .title{display:flex;align-items:center;gap:10px}
   .title h1{font-size:18px;margin:0;letter-spacing:-.01em}
-  .badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
-    background:var(--brand);color:#fff}
+  .badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--brand);color:#fff}
   .actions{display:flex;gap:8px}
   .btn{text-decoration:none;font-size:13px;padding:7px 13px;border-radius:9px;
     border:1px solid var(--line);color:var(--muted);background:var(--card);cursor:pointer;font-family:inherit}
   .btn:hover{color:var(--ink);border-color:var(--muted)}
 
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
   .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-  .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:8px;
-    letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:8px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 
+  /* tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;
+    font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;font-family:inherit;margin-bottom:-1px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+  .tab-panel.hidden{display:none}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 16px;font-weight:600}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
-  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
-    margin:0 0 16px;font-weight:600}
 
-  /* bar chart */
   .bars{display:flex;flex-direction:column;gap:10px}
-  .bar-row{display:grid;grid-template-columns:110px 1fr 42px;align-items:center;gap:10px;font-size:13px}
+  .bar-row{display:grid;grid-template-columns:120px 1fr 48px;align-items:center;gap:10px;font-size:13px}
   .bar-label{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar-track{background:var(--field);border-radius:6px;height:22px;overflow:hidden}
-  .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;
-    transition:width .5s ease}
+  .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;transition:width .5s ease}
   .bar-val{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
 
-  table{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
-  .tbl-scroll{overflow-x:auto;margin:0 -18px -18px;padding:0 18px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .search,.filter-sel{padding:8px 12px;border:1px solid var(--line);border-radius:9px;
+    background:var(--field);color:var(--ink);font-size:14px;font-family:inherit}
+  .search{flex:1;min-width:160px}
+  .search:focus,.filter-sel:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:460px}
+  .tbl-scroll{overflow-x:auto}
   th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
   td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-  .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;
-    background:var(--field);color:var(--muted)}
+  .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--field);color:var(--muted)}
   .role-badge.admin{background:var(--brand);color:#fff}
   .role-badge.superadmin{background:var(--bad);color:#fff}
-  .role-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);
-    color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
-  .muted-dash{color:var(--muted);font-size:12px}
+  .role-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
+  .muted-dash{color:var(--muted);font-size:13px}
   .manage-cell{display:flex;gap:8px;align-items:center}
-  .btn-view{background:none;border:1px solid var(--line);color:var(--brand);padding:4px 10px;
-    border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+  .btn-view{background:none;border:1px solid var(--line);color:var(--brand);padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
   .btn-view:hover{background:var(--field);border-color:var(--brand)}
-  .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);
-    padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
-  .btn-del-user:hover{background:var(--bad-bg)}
+  .act-chip{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
+  .act-chip.fail{color:var(--bad)}
+
+  /* pager */
+  .pager{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px}
+  .pager-info{font-size:12px;color:var(--muted);margin-right:auto}
+  .pg{min-width:32px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);
+    color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit}
+  .pg:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+  .pg.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .pg:disabled{opacity:.4;cursor:default}
+
+  /* modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,15,20,.55);display:flex;
+    align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto;z-index:100}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 24px 70px rgba(0,0,0,.35);max-width:680px;width:100%;padding:26px;position:relative}
+  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
+  .modal-close:hover{color:var(--ink)}
   .detail-head2{display:flex;align-items:center;gap:10px}
-  .detail-name{font-size:18px;font-weight:700}
+  .detail-name{font-size:19px;font-weight:700}
   .detail-meta{color:var(--muted);font-size:13px;margin:8px 0 0}
-  h3.sub2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
-    margin:20px 0 8px;font-weight:600}
-  td.act{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
+  h3.sub2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:20px 0 8px;font-weight:600}
+  .vitals{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:12px 0}
+  .vit{background:var(--field);border-radius:10px;padding:12px 10px;text-align:center}
+  .vit-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .vit-val{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .vit-val span{font-family:var(--sans);font-size:11px;color:var(--muted);margin-left:2px}
+  .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-del-user:hover{background:var(--bad-bg)}
 
-  /* activity feed */
-  .feed{display:flex;flex-direction:column;gap:0}
-  .feed-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
-  .feed-item:last-child{border-bottom:none}
-  .feed-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
-  .feed-dot.fail{background:var(--bad)}
-  .feed-main{flex:1;min-width:0}
-  .feed-main b{font-weight:600}
-  .feed-time{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
-
+  /* guard (login/signup) */
   .guard{max-width:420px;margin:12vh auto;text-align:center;background:var(--card);
     border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 28px}
   .guard h1{font-size:19px;margin:0 0 8px}
   .guard p{color:var(--muted);font-size:14px;margin:0 0 20px}
   .guard label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:12px}
   .guard label span{display:block;margin-bottom:5px}
-  .guard input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-    background:var(--field);color:var(--ink);font-size:15px;font-family:inherit}
+  .guard input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);font-size:15px;font-family:inherit}
   .guard input:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
   .guard .row{display:flex;gap:8px;margin-top:8px}
   .guard .row button{flex:1}
-  .primary{background:var(--brand);color:#fff;border:none;padding:11px 16px;border-radius:10px;
-    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .primary{background:var(--brand);color:#fff;border:none;padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
   .primary:hover{background:var(--brand-ink)}
-  .line{background:var(--card);color:var(--brand);border:1px solid var(--brand);padding:11px 16px;
-    border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .lineb{background:var(--card);color:var(--brand);border:1px solid var(--brand);padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
   .gmsg{font-size:13px;min-height:18px;margin-top:12px}
   .gmsg.err{color:var(--bad)} .gmsg.ok{color:var(--ok)}
   .hidden{display:none}
-  @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} }
+  @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} .vitals{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
 <body>
@@ -130,19 +143,16 @@
     <label><span>비밀번호</span><input id="gp" type="password" autocomplete="current-password"></label>
     <div class="row">
       <button class="primary" id="gLogin">로그인</button>
-      <button class="line" id="gSignup">회원가입</button>
+      <button class="lineb" id="gSignup">회원가입</button>
     </div>
     <div class="gmsg" id="gMsg"></div>
     <p style="margin:18px 0 0"><a class="btn" href="/ui">일반 기록 화면으로</a></p>
   </section>
 
-  <!-- 대시보드 본체 -->
+  <!-- 대시보드 -->
   <div class="hidden" id="board">
     <header>
-      <div class="title">
-        <h1>관리자 대시보드</h1>
-        <span class="badge" id="adminName">admin</span>
-      </div>
+      <div class="title"><h1>관리자 대시보드</h1><span class="badge" id="adminName">admin</span></div>
       <div class="actions">
         <a class="btn" href="/ui">기록 화면</a>
         <button class="btn" id="logoutBtn">로그아웃</button>
@@ -151,37 +161,72 @@
 
     <div class="kpis" id="kpis"></div>
 
-    <div class="cols">
+    <nav class="tabs">
+      <button class="tab active" data-tab="users">사용자</button>
+      <button class="tab" data-tab="logs">활동 로그</button>
+      <button class="tab" data-tab="charts">통계</button>
+    </nav>
+
+    <!-- 사용자 탭 -->
+    <div class="tab-panel" id="tab-users">
       <section class="card">
-        <h2>사용자별 기록 수</h2>
-        <div class="bars" id="userBars"></div>
-      </section>
-      <section class="card">
-        <h2>동작별 활동 수</h2>
-        <div class="bars" id="actionBars"></div>
+        <h2>전체 사용자</h2>
+        <div class="toolbar">
+          <input class="search" id="userSearch" placeholder="이름으로 검색…" autocomplete="off">
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr><th>ID</th><th>이름</th><th>권한</th><th>기록</th><th>가입일</th><th>관리</th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+        <div class="muted-dash" id="noUsers" style="display:none;padding:16px 0">검색 결과가 없어요.</div>
+        <div class="pager" id="userPager"></div>
       </section>
     </div>
 
-    <section class="card">
-      <h2>전체 사용자</h2>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>ID</th><th>아이디</th><th>권한</th><th>기록</th><th>가입일</th><th>관리</th></tr></thead>
-          <tbody id="usersBody"></tbody>
-        </table>
+    <!-- 활동 로그 탭 -->
+    <div class="tab-panel hidden" id="tab-logs">
+      <section class="card">
+        <h2>활동 로그</h2>
+        <div class="toolbar">
+          <select class="filter-sel" id="logAction"><option value="">모든 동작</option></select>
+          <input type="date" class="filter-sel" id="logStart" title="시작일">
+          <input type="date" class="filter-sel" id="logEnd" title="종료일">
+          <input class="search" id="logSearch" placeholder="사용자·상세 검색…" autocomplete="off">
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr><th>시각</th><th>사용자</th><th>동작</th><th>상세</th></tr></thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+        <div class="muted-dash" id="noLogs" style="display:none;padding:16px 0">해당하는 로그가 없어요.</div>
+        <div class="pager" id="logPager"></div>
+      </section>
+    </div>
+
+    <!-- 통계 탭 -->
+    <div class="tab-panel hidden" id="tab-charts">
+      <div class="kpis" id="healthKpis"></div>
+      <div class="cols">
+        <section class="card"><h2>BMI 분포</h2><div class="bars" id="bmiDist"></div></section>
+        <section class="card"><h2>혈압 분포</h2><div class="bars" id="bpDist"></div></section>
       </div>
-    </section>
+      <div class="cols">
+        <section class="card"><h2>혈당 분포</h2><div class="bars" id="sugarDist"></div></section>
+        <section class="card"><h2>사용자별 기록 수 (상위 8)</h2><div class="bars" id="userBars"></div></section>
+      </div>
+      <section class="card"><h2>동작별 활동 수</h2><div class="bars" id="actionBars"></div></section>
+    </div>
+  </div>
 
-    <!-- 회원 상세 (사용자 클릭 시) -->
-    <section class="card hidden" id="userDetailCard">
-      <h2>회원 상세 <button class="btn" id="closeDetail" style="float:right;margin-top:-4px">닫기</button></h2>
+  <!-- 회원 상세 팝업 -->
+  <div class="modal-overlay hidden" id="userModal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="닫기">✕</button>
       <div id="userDetailBody"></div>
-    </section>
-
-    <section class="card">
-      <h2>최근 활동</h2>
-      <div class="feed" id="feed"></div>
-    </section>
+    </div>
   </div>
 </div>
 
@@ -190,33 +235,25 @@ const $ = (id) => document.getElementById(id);
 const token = () => localStorage.getItem("token");
 const authHead = () => ({ "Authorization": "Bearer " + token() });
 let myRole = "";
+let usersCache = [], userPage = 1, userQuery = "";
+let logsCache = [], logPage = 1, logQuery = "", logActionFilter = "", logStart = "", logEnd = "";
+const U_SIZE = 10, L_SIZE = 15;
 
+/* ---------- 인증 ---------- */
 function showGuard(title, msg){
-  $("guard").classList.remove("hidden");
-  $("board").classList.add("hidden");
+  $("guard").classList.remove("hidden"); $("board").classList.add("hidden");
   if (title) $("guardTitle").textContent = title;
   if (msg) $("guardMsg").textContent = msg;
 }
-
-$("logoutBtn").onclick = () => {
-  localStorage.removeItem("token"); localStorage.removeItem("name");
-  checkAuth();
-};
-
-$("closeDetail").onclick = () => $("userDetailCard").classList.add("hidden");
+$("logoutBtn").onclick = () => { localStorage.removeItem("token"); localStorage.removeItem("name"); checkAuth(); };
 
 $("gLogin").onclick = async () => {
   const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
   const body = new URLSearchParams({username:$("gu").value, password:$("gp").value});
   const res = await fetch("/login", {method:"POST", body});
-  if (res.ok){
-    const d = await res.json();
-    localStorage.setItem("token", d.access_token);
-    localStorage.setItem("name", $("gu").value);
-    checkAuth();
-  } else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "로그인 실패"; }
+  if (res.ok){ const d = await res.json(); localStorage.setItem("token", d.access_token); localStorage.setItem("name", $("gu").value); checkAuth(); }
+  else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "로그인 실패"; }
 };
-
 $("gSignup").onclick = async () => {
   const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
   const res = await fetch("/signup", {method:"POST", headers:{"Content-Type":"application/json"},
@@ -231,31 +268,37 @@ async function checkAuth(){
   if (meRes.status === 401){ showGuard("관리자 로그인", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
   const me = await meRes.json();
   if (me.role !== "admin" && me.role !== "superadmin"){
-    showGuard("관리자 권한이 없어요", `${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`);
-    return;
+    showGuard("관리자 권한이 없어요", `${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`); return;
   }
   myRole = me.role;
-  $("guard").classList.add("hidden");
-  $("board").classList.remove("hidden");
+  $("guard").classList.add("hidden"); $("board").classList.remove("hidden");
   $("adminName").textContent = `${me.username} · ${me.role}`;
   loadBoard();
 }
 
+/* ---------- 탭 ---------- */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+  $("tab-" + t.dataset.tab).classList.remove("hidden");
+});
+
+/* ---------- 데이터 로드 ---------- */
 function bars(container, items){
   const max = Math.max(1, ...items.map(i => i.value));
   container.innerHTML = items.length ? items.map(i =>
-    `<div class="bar-row">
-       <span class="bar-label">${i.label}</span>
-       <span class="bar-track"><span class="bar-fill" style="width:${(i.value/max*100)}%"></span></span>
-       <span class="bar-val">${i.value}</span>
-     </div>`).join("") : `<div style="color:var(--muted);font-size:13px">데이터 없음</div>`;
+    `<div class="bar-row"><span class="bar-label">${i.label}</span>
+     <span class="bar-track"><span class="bar-fill" style="width:${(i.value/max*100)}%"></span></span>
+     <span class="bar-val">${i.value}</span></div>`).join("")
+    : `<div class="muted-dash">데이터 없음</div>`;
 }
 
 async function loadBoard(){
-  const [stats, users, logs] = await Promise.all([
+  const [stats, users, logs, hs] = await Promise.all([
     fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
     fetch("/admin/users", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/logs?limit=200", {headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/logs?limit=500", {headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/health-stats", {headers:authHead()}).then(r=>r.json()),
   ]);
 
   const adminCount = users.users.filter(u => u.role === "admin" || u.role === "superadmin").length;
@@ -265,103 +308,155 @@ async function loadBoard(){
     <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${stats.total_records}</div></div>
     <div class="kpi"><div class="k-label">활동 로그</div><div class="k-val">${stats.total_logs}</div></div>`;
 
-  // 사용자별 기록 수 (많은 순)
-  const userItems = users.users
-    .map(u => ({label: u.username || "(빈 이름)", value: u.record_count}))
-    .sort((a,b) => b.value - a.value).slice(0, 8);
+  // 사용자
+  usersCache = users.users; userPage = 1; renderUsers();
+
+  // 로그
+  logsCache = logs.logs; logPage = 1;
+  const actions = [...new Set(logsCache.map(l => l.action))].sort();
+  $("logAction").innerHTML = `<option value="">모든 동작</option>` + actions.map(a => `<option value="${a}">${a}</option>`).join("");
+  renderLogs();
+
+  // 차트
+  const userItems = users.users.map(u => ({label:u.username||"(빈)", value:u.record_count}))
+    .sort((a,b)=>b.value-a.value).slice(0,8);
   bars($("userBars"), userItems);
-
-  // 동작별 활동 수
   const counts = {};
-  for (const l of logs.logs){ counts[l.action] = (counts[l.action] || 0) + 1; }
-  const actionItems = Object.entries(counts)
-    .map(([label, value]) => ({label, value}))
-    .sort((a,b) => b.value - a.value);
-  bars($("actionBars"), actionItems);
+  for (const l of logsCache) counts[l.action] = (counts[l.action]||0)+1;
+  bars($("actionBars"), Object.entries(counts).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
 
-  // 사용자 표
-  const opt = (cur, v) => `<option value="${v}" ${cur===v?"selected":""}>${v}</option>`;
-  $("usersBody").innerHTML = users.users.map(u => {
-    const joined = (u.created_at || "").slice(0, 10) || "—";
-    const roleCtrl = (myRole === "superadmin")
-      ? `<select class="role-sel" data-id="${u.id}">${opt(u.role,"user")}${opt(u.role,"admin")}${opt(u.role,"superadmin")}</select>`
-      : "";
-    return `<tr><td class="num">${u.id}</td><td>${u.username || "—"}</td>`+
-      `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
-      `<td class="num">${u.record_count}</td>`+
-      `<td class="num">${joined}</td>`+
-      `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button>${roleCtrl}</td></tr>`;
-  }).join("");
-  document.querySelectorAll(".btn-view").forEach(b =>
-    b.onclick = () => loadUserDetail(parseInt(b.dataset.id)));
-  if (myRole === "superadmin"){
-    document.querySelectorAll(".role-sel").forEach(s =>
-      s.onchange = () => setRole(parseInt(s.dataset.id), s.value));
-  }
-
-  // 활동 피드 (최근 20)
-  $("feed").innerHTML = logs.logs.slice(0, 20).map(l => {
-    const fail = l.action === "login_failed";
-    const t = (l.created_at || "").replace("T", " ").slice(0, 19);
-    return `<div class="feed-item">
-      <span class="feed-dot ${fail ? "fail" : ""}"></span>
-      <span class="feed-main"><b>${l.username || "—"}</b> · ${l.action}${l.detail ? " ("+l.detail+")" : ""}</span>
-      <span class="feed-time">${t}</span>
-    </div>`;
-  }).join("");
+  // 건강 통계 (전체 기록 분포)
+  $("healthKpis").innerHTML = `
+    <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${hs.total_records}</div></div>
+    <div class="kpi"><div class="k-label">평균 BMI</div><div class="k-val">${hs.avg_bmi ?? "—"}</div></div>
+    <div class="kpi"><div class="k-label">평균 체중</div><div class="k-val">${hs.avg_weight ?? "—"}</div></div>
+    <div class="kpi"><div class="k-label">경고 포함</div><div class="k-val">${hs.warned_records}</div></div>`;
+  const dist = (obj, order) => order.filter(k => obj[k] != null).map(k => ({label:k, value:obj[k]}));
+  bars($("bmiDist"), dist(hs.bmi_dist, ["저체중","정상","과체중","비만"]));
+  bars($("bpDist"), dist(hs.bp_dist, ["정상","주의","고혈압"]));
+  bars($("sugarDist"), dist(hs.sugar_dist, ["정상","공복혈당장애","당뇨 의심"]));
 }
 
+/* ---------- 페이지네이션 ---------- */
+function renderPager(el, page, pages, total, unit, onGo){
+  if (total === 0){ el.innerHTML = ""; return; }
+  let html = `<span class="pager-info">총 ${total}${unit} · ${page}/${pages}페이지</span>`;
+  if (pages > 1){
+    html += `<button class="pg" ${page<=1?"disabled":""} data-p="${page-1}">‹</button>`;
+    const s = Math.max(1, page-2), e = Math.min(pages, page+2);
+    for (let p=s; p<=e; p++) html += `<button class="pg ${p===page?"active":""}" data-p="${p}">${p}</button>`;
+    html += `<button class="pg" ${page>=pages?"disabled":""} data-p="${page+1}">›</button>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll(".pg").forEach(b => { if (!b.disabled) b.onclick = () => onGo(parseInt(b.dataset.p)); });
+}
+
+/* ---------- 사용자 ---------- */
+function renderUsers(){
+  const q = userQuery.trim().toLowerCase();
+  const list = q ? usersCache.filter(u => (u.username||"").toLowerCase().includes(q)) : usersCache;
+  const pages = Math.max(1, Math.ceil(list.length / U_SIZE));
+  if (userPage > pages) userPage = pages;
+  const slice = list.slice((userPage-1)*U_SIZE, userPage*U_SIZE);
+  $("noUsers").style.display = list.length ? "none" : "block";
+  const opt = (cur, v) => `<option value="${v}" ${cur===v?"selected":""}>${v}</option>`;
+  $("usersBody").innerHTML = slice.map(u => {
+    const joined = (u.created_at||"").slice(0,10) || "—";
+    const ctrl = (myRole === "superadmin")
+      ? `<select class="role-sel" data-id="${u.id}">${opt(u.role,"user")}${opt(u.role,"admin")}${opt(u.role,"superadmin")}</select>` : "";
+    return `<tr><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
+      `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
+      `<td class="num">${u.record_count}</td><td class="num">${joined}</td>`+
+      `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button>${ctrl}</td></tr>`;
+  }).join("");
+  $("usersBody").querySelectorAll(".btn-view").forEach(b => b.onclick = () => loadUserDetail(parseInt(b.dataset.id)));
+  if (myRole === "superadmin")
+    $("usersBody").querySelectorAll(".role-sel").forEach(s => s.onchange = () => setRole(parseInt(s.dataset.id), s.value));
+  renderPager($("userPager"), userPage, pages, list.length, "명", (p)=>{ userPage=p; renderUsers(); });
+}
+$("userSearch").oninput = (e) => { userQuery = e.target.value; userPage = 1; renderUsers(); };
+
+/* ---------- 로그 ---------- */
+function renderLogs(){
+  let list = logsCache;
+  if (logActionFilter) list = list.filter(l => l.action === logActionFilter);
+  if (logStart) list = list.filter(l => (l.created_at||"").slice(0,10) >= logStart);
+  if (logEnd) list = list.filter(l => (l.created_at||"").slice(0,10) <= logEnd);
+  const q = logQuery.trim().toLowerCase();
+  if (q) list = list.filter(l => (l.username||"").toLowerCase().includes(q) || (l.detail||"").toLowerCase().includes(q));
+  const pages = Math.max(1, Math.ceil(list.length / L_SIZE));
+  if (logPage > pages) logPage = pages;
+  const slice = list.slice((logPage-1)*L_SIZE, logPage*L_SIZE);
+  $("noLogs").style.display = list.length ? "none" : "block";
+  $("logsBody").innerHTML = slice.map(l => {
+    const t = (l.created_at||"").replace("T"," ").slice(0,19);
+    const fail = l.action === "login_failed";
+    return `<tr><td class="num">${t}</td><td>${l.username||"—"}</td>`+
+      `<td><span class="act-chip ${fail?"fail":""}">${l.action}</span></td>`+
+      `<td>${l.detail||"—"}</td></tr>`;
+  }).join("");
+  renderPager($("logPager"), logPage, pages, list.length, "건", (p)=>{ logPage=p; renderLogs(); });
+}
+$("logAction").onchange = (e) => { logActionFilter = e.target.value; logPage = 1; renderLogs(); };
+$("logSearch").oninput = (e) => { logQuery = e.target.value; logPage = 1; renderLogs(); };
+$("logStart").onchange = (e) => { logStart = e.target.value; logPage = 1; renderLogs(); };
+$("logEnd").onchange = (e) => { logEnd = e.target.value; logPage = 1; renderLogs(); };
+
+/* ---------- 권한 변경 ---------- */
 async function setRole(id, role){
   const res = await fetch(`/admin/users/${id}/role`, {method:"PUT",
-    headers:{"Content-Type":"application/json", ...authHead()},
-    body: JSON.stringify({role})});
+    headers:{"Content-Type":"application/json", ...authHead()}, body: JSON.stringify({role})});
   if (!res.ok){ const e = await res.json(); alert(e.detail || "권한 변경 실패"); }
   loadBoard();
 }
+
+/* ---------- 회원 상세 모달 ---------- */
+function closeModal(){ $("userModal").classList.add("hidden"); }
+$("modalClose").onclick = closeModal;
+$("userModal").onclick = (e) => { if (e.target === $("userModal")) closeModal(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
 async function loadUserDetail(id){
   const res = await fetch(`/admin/users/${id}`, {headers:authHead()});
   if (!res.ok){ alert("회원 정보를 불러오지 못했어요."); return; }
   const d = await res.json();
-  const stat = d.stats
-    ? `평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"} · 최근 기록 ${d.stats.latest_date}`
-    : "기록 없음";
+  const latest = d.records[0];
+  const vitals = latest ? `
+    <div class="vitals">
+      <div class="vit"><div class="vit-label">체중</div><div class="vit-val">${latest.weight}<span>kg</span></div></div>
+      <div class="vit"><div class="vit-label">키</div><div class="vit-val">${latest.height}<span>cm</span></div></div>
+      <div class="vit"><div class="vit-label">BMI</div><div class="vit-val">${latest.bmi}</div></div>
+      <div class="vit"><div class="vit-label">혈압</div><div class="vit-val">${latest.systolic}/${latest.diastolic}</div></div>
+      <div class="vit"><div class="vit-label">혈당</div><div class="vit-val">${latest.blood_sugar}<span>mg/dL</span></div></div>
+    </div>` : `<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
+  const avg = d.stats ? `평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}` : "기록 없음";
   const rows = d.records.map(r =>
     `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
-    `<td>${r.bmi_category}</td><td>${(r.warnings||[]).join(", ") || "—"}</td></tr>`).join("")
-    || `<tr><td colspan="5" class="muted-dash">기록 없음</td></tr>`;
-  const logs = d.recent_logs.map(l =>
-    `<div class="feed-item"><span class="feed-dot ${l.action==="login_failed"?"fail":""}"></span>`+
-    `<span class="feed-main">${l.action}${l.detail?" ("+l.detail+")":""}</span>`+
-    `<span class="feed-time">${(l.created_at||"").replace("T"," ").slice(0,19)}</span></div>`).join("")
-    || `<div class="muted-dash">활동 없음</div>`;
-  const delBtn = (myRole === "superadmin")
-    ? `<button class="btn-del-user" data-id="${d.id}">이 회원 삭제</button>` : "";
+    `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
+    `<td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted-dash">기록 없음</td></tr>`;
+  const delBtn = (myRole === "superadmin") ? `<button class="btn-del-user" data-id="${d.id}">이 회원 삭제</button>` : "";
   $("userDetailBody").innerHTML = `
-    <div class="detail-head2"><span class="detail-name">${d.username}</span>
-      <span class="role-badge ${d.role}">${d.role}</span></div>
-    <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 기록 ${d.record_count}건 · ${stat}</p>
-    <h3 class="sub2">최근 기록</h3>
+    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span></div>
+    <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
+    <h3 class="sub2">최근 측정</h3>${vitals}
+    <h3 class="sub2">기록 이력 (최근 10일)</h3>
     <div class="tbl-scroll"><table>
-      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>경고</th></tr></thead>
+      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <h3 class="sub2">최근 활동</h3>
-    <div class="feed">${logs}</div>
     ${delBtn}`;
   if (myRole === "superadmin"){
     const b = $("userDetailBody").querySelector(".btn-del-user");
     if (b) b.onclick = () => deleteUser(d.id, d.username);
   }
-  $("userDetailCard").classList.remove("hidden");
-  $("userDetailCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+  $("userModal").classList.remove("hidden");
 }
 
 async function deleteUser(id, name){
   if (!confirm(`'${name}' 회원을 삭제할까요? 이 회원의 기록도 모두 삭제됩니다.`)) return;
   const res = await fetch(`/admin/users/${id}`, {method:"DELETE", headers:authHead()});
   if (!res.ok){ const e = await res.json(); alert(e.detail || "삭제 실패"); return; }
-  $("userDetailCard").classList.add("hidden");
-  loadBoard();
+  closeModal(); loadBoard();
 }
 
 checkAuth();

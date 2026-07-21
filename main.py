@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
+from collections import Counter
 import json
 
 from database import Base, engine, get_db, User, Record, ActivityLog
@@ -387,6 +388,24 @@ def admin_stats(admin: User = Depends(get_current_admin), db: Session = Depends(
         "total_users": db.query(User).count(),
         "total_records": db.query(Record).count(),
         "total_logs": db.query(ActivityLog).count(),
+    }
+
+
+@app.get("/admin/health-stats")
+def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """전체 기록의 건강 분포 통계."""
+    records = db.query(Record).all()
+    bmis = [r.bmi for r in records if r.bmi is not None]
+    weights = [r.weight for r in records]
+    warned = sum(1 for r in records if r.warnings and r.warnings != "[]")
+    return {
+        "total_records": len(records),
+        "avg_bmi": round(sum(bmis) / len(bmis), 1) if bmis else None,
+        "avg_weight": round(sum(weights) / len(weights), 1) if weights else None,
+        "warned_records": warned,
+        "bmi_dist": dict(Counter(r.bmi_category for r in records)),
+        "bp_dist": dict(Counter(r.bp_category for r in records)),
+        "sugar_dist": dict(Counter(r.sugar_category for r in records)),
     }
 
 

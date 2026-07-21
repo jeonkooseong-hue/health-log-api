@@ -26,6 +26,20 @@ random.seed(42)
 MEMOS = ["", "", "", "", "컨디션 좋음", "조금 피곤함", "야식 먹음",
          "운동 완료", "숙면함", "스트레스 많음", "물 많이 마심", "과식"]
 
+SURNAMES = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임",
+            "한", "오", "서", "신", "권", "황", "안", "송", "류", "홍"]
+GIVEN = ["민준", "서연", "도윤", "하은", "지호", "서준", "하윤", "예준", "지우", "수아",
+         "지민", "예은", "준서", "다은", "시우", "유진", "은우", "채원", "지훈", "소율",
+         "건우", "지아", "현우", "서윤", "우진", "하린", "정우", "수빈", "지원", "민서",
+         "태윤", "예린", "재이", "시윤", "유나", "준우", "서아", "도현", "하율", "지율"]
+
+
+def korean_names(n):
+    """서로 다른 한국 이름 n개를 만든다."""
+    combos = [s + g for s in SURNAMES for g in GIVEN]  # 20 x 40 = 800개
+    random.shuffle(combos)
+    return combos[:n]
+
 
 def main():
     Base.metadata.create_all(bind=engine)
@@ -44,11 +58,12 @@ def main():
     start = TODAY - timedelta(days=DAYS - 1)  # 첫 기록일
     joined = datetime.combine(start, datetime.min.time())
 
-    # 사용자 생성: 1명 슈퍼관리자 + 3명 관리자 + 나머지 일반
+    # 사용자 생성: 1명 슈퍼관리자(admin) + 3명 관리자 + 나머지 일반 (한국 이름)
+    names = korean_names(NUM_USERS - 1)
     users = [User(username="admin", hashed_password=pw_admin, role="superadmin", created_at=joined)]
-    for i in range(1, NUM_USERS):
-        role = "admin" if i <= 3 else "user"
-        users.append(User(username=f"user{i:03d}", hashed_password=pw_user, role=role, created_at=joined))
+    for i in range(NUM_USERS - 1):
+        role = "admin" if i < 3 else "user"
+        users.append(User(username=names[i], hashed_password=pw_user, role=role, created_at=joined))
     db.add_all(users)
     db.commit()  # id 확보
 
