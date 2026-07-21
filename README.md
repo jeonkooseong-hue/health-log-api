@@ -15,8 +15,16 @@
 | GET | `/records/{id}` | 기록 하나 조회 (없으면 404) |
 | PUT | `/records/{id}` | 기록 수정 |
 | DELETE | `/records/{id}` | 기록 삭제 |
-| GET | `/search?start=&end=` | 날짜 범위로 검색 |
-| GET | `/stats` | 평균 체중·BMI 등 통계 |
+| GET | `/search?start=&end=` | 날짜 범위로 검색 (`&user=` 선택) |
+| GET | `/stats` | 평균 체중·BMI 등 통계 (`?user=` 선택) |
+| GET | `/report/weekly` | 최근 7일 vs 지난주 평균 체중 변화 (`?user=` 선택) |
+| GET | `/ui` | 기록 입력/조회 HTML 화면 |
+
+### 추가 기능
+
+- **사용자 구분**: `user` 필드로 기록을 사용자별로 분리. `?user=이름` 으로 필터.
+- **주간 리포트**: `/report/weekly` 에서 최근 7일과 지난주 평균 체중을 비교해 변화량 반환.
+- **간단 화면**: `/ui` 에서 폼으로 기록을 입력하고 표로 조회.
 
 ## 분류 기준
 
