@@ -68,7 +68,8 @@
   th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
   td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
   tr.month-sep td{background:var(--field);font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.03em}
-  tr.risk-row{background:color-mix(in srgb, var(--bad-bg) 55%, transparent)}
+  tr.risk-row td{background:var(--bad-bg)}
+  td.risk-val{color:var(--bad);font-weight:700}
 
   .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--field);color:var(--muted)}
   .role-badge.admin{background:var(--brand);color:#fff}
@@ -469,7 +470,8 @@ async function openGroupDetail(metric,category){
   const mname=d.unit||metric;
   const isRisk=["비만","고혈압","당뇨 의심","경고 있는 회원"].includes(d.category);
   const rowsHtml=(list)=>list.map(u=>
-    `<tr class="row-click ${isRisk?"risk-row":""}" data-id="${u.id}"><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
+    `<tr class="row-click ${isRisk?"risk-row":""}" data-id="${u.id}"><td>${isRisk?"⚠ ":""}${u.username}</td>`+
+    `<td class="num ${isRisk?"risk-val":""}">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
     ||`<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
   $("userDetailBody").innerHTML=`
     <div class="detail-head2"><span class="detail-name">${d.category}</span><span class="role-badge">${d.user_count}명</span></div>
