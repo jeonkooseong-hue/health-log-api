@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case
 from datetime import date, timedelta
 from collections import Counter
 import json
@@ -328,14 +329,12 @@ def _health_level(r):
 @app.get("/admin/users")
 def admin_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     users = db.query(User).all()
-    records = db.query(Record).all()
-    latest = _latest_per_user(records)
-    counts = {}
-    for r in records:
-        counts[r.user_id] = counts.get(r.user_id, 0) + 1
-    logins = {}
-    for l in db.query(ActivityLog).filter(ActivityLog.action == "login").order_by(ActivityLog.id.asc()).all():
-        logins[l.user_id] = l.created_at
+    # 전건 로딩 대신 SQL 집계 (대용량 대응)
+    counts = dict(db.query(Record.user_id, func.count(Record.id)).group_by(Record.user_id).all())
+    latest = _latest_records_sql(db)
+    logins = dict(db.query(ActivityLog.user_id, func.max(ActivityLog.created_at))
+                    .filter(ActivityLog.action == "login")
+                    .group_by(ActivityLog.user_id).all())
     result = []
     for u in users:
         result.append({
@@ -447,7 +446,7 @@ def admin_stats(admin: User = Depends(get_current_admin), db: Session = Depends(
 
 
 def _latest_per_user(records):
-    """사용자별 가장 최근 기록만 추린다."""
+    """사용자별 가장 최근 기록만 추린다 (파이썬 리스트용)."""
     latest = {}
     for r in records:
         cur = latest.get(r.user_id)
@@ -456,12 +455,35 @@ def _latest_per_user(records):
     return latest
 
 
+def _latest_records_sql(db: Session):
+    """사용자별 최신 기록만 SQL로 (전건 로딩 방지). {user_id: Record}"""
+    sub = (db.query(Record.user_id.label("uid"), func.max(Record.date).label("mx"))
+             .group_by(Record.user_id).subquery())
+    rows = (db.query(Record)
+              .join(sub, (Record.user_id == sub.c.uid) & (Record.date == sub.c.mx))
+              .all())
+    return {r.user_id: r for r in rows}
+
+
+def _monthly_avg_sql(db: Session, user_ids=None, active_only=True):
+    """월별 평균 체중·BMI를 SQL 집계로."""
+    q = db.query(func.substr(Record.date, 1, 7).label("m"),
+                 func.avg(Record.weight), func.avg(Record.bmi))
+    if user_ids is not None:
+        q = q.filter(Record.user_id.in_(user_ids))
+    elif active_only:
+        q = q.join(User, User.id == Record.user_id).filter(User.status == "active")
+    rows = q.group_by("m").order_by("m").all()
+    return [{"month": m,
+             "avg_weight": round(w, 1) if w is not None else None,
+             "avg_bmi": round(b, 1) if b is not None else None} for m, w, b in rows]
+
+
 @app.get("/admin/health-stats")
 def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """회원 단위 건강 통계 + 월별 평균 추이 (활성 회원만)."""
-    records = db.query(Record).all()
     active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
-    latest = [r for r in _latest_per_user(records).values() if r.user_id in active_ids]
+    latest = [r for uid, r in _latest_records_sql(db).items() if uid in active_ids]
 
     bmi_u = Counter(r.bmi_category for r in latest)
     bp_u = Counter(r.bp_category for r in latest)
@@ -473,20 +495,8 @@ def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = D
         "any_warning": sum(1 for r in latest if r.warnings and r.warnings != "[]"),
     }
 
-    # 월별 평균 (활성 회원 기록 기준)
-    m_w, m_b = {}, {}
-    for r in records:
-        if r.user_id not in active_ids:
-            continue
-        m = r.date[:7]  # YYYY-MM
-        m_w.setdefault(m, []).append(r.weight)
-        if r.bmi is not None:
-            m_b.setdefault(m, []).append(r.bmi)
-    monthly = [{
-        "month": m,
-        "avg_weight": round(sum(m_w[m]) / len(m_w[m]), 1),
-        "avg_bmi": round(sum(m_b[m]) / len(m_b[m]), 1) if m_b.get(m) else None,
-    } for m in sorted(m_w)]
+    # 월별 평균 (활성 회원 기록 기준) — SQL 집계
+    monthly = _monthly_avg_sql(db, active_only=True)
 
     return {
         "user_count": len(latest),
@@ -595,9 +605,8 @@ def admin_health_group(metric: str, category: str = "",
                        admin: User = Depends(get_current_admin),
                        db: Session = Depends(get_db)):
     """특정 지표 카테고리(또는 경고)에 속한 회원(최신 기록 기준) + 그룹 월별 추이."""
-    records = db.query(Record).all()
     active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
-    latest = {uid: r for uid, r in _latest_per_user(records).items() if uid in active_ids}
+    latest = {uid: r for uid, r in _latest_records_sql(db).items() if uid in active_ids}
 
     if metric == "warning":
         # 최신 기록에 경고가 있는 회원
@@ -607,12 +616,15 @@ def admin_health_group(metric: str, category: str = "",
         users = [{"id": r.user_id, "username": names.get(r.user_id, "?"),
                   "value": _warn_count(r), "date": r.date} for r in group]
         users.sort(key=lambda x: x["value"], reverse=True)
-        mvals = {}
-        for r in records:
-            if r.user_id in user_ids:
-                mvals.setdefault(r.date[:7], []).append(_warn_count(r))
-        monthly = [{"month": m, "avg": round(sum(mvals[m]) / len(mvals[m]), 1)} for m in sorted(mvals)]
-        return {"metric": "warning", "category": "경고 있는 회원", "unit": "경고 수",
+        # 월별 경고 발생률(%) — SQL 집계
+        monthly = []
+        if user_ids:
+            rows = (db.query(func.substr(Record.date, 1, 7).label("m"),
+                             func.avg(case((Record.warnings != "[]", 1.0), else_=0.0)))
+                      .filter(Record.user_id.in_(user_ids))
+                      .group_by("m").order_by("m").all())
+            monthly = [{"month": m, "avg": round((v or 0) * 100, 1)} for m, v in rows]
+        return {"metric": "warning", "category": "경고 있는 회원", "unit": "경고 발생률(%)",
                 "user_count": len(users), "users": users, "monthly": monthly}
 
     cat_field = {"bmi": "bmi_category", "bp": "bp_category", "sugar": "sugar_category"}.get(metric)
@@ -628,11 +640,14 @@ def admin_health_group(metric: str, category: str = "",
               "value": getattr(r, val_field), "date": r.date} for r in group]
     users.sort(key=lambda x: x["value"], reverse=True)
 
-    mvals = {}
-    for r in records:
-        if r.user_id in user_ids:
-            mvals.setdefault(r.date[:7], []).append(getattr(r, val_field))
-    monthly = [{"month": m, "avg": round(sum(mvals[m]) / len(mvals[m]), 1)} for m in sorted(mvals)]
+    # 그룹 회원 월별 평균 — SQL 집계
+    monthly = []
+    if user_ids:
+        col = getattr(Record, val_field)
+        rows = (db.query(func.substr(Record.date, 1, 7).label("m"), func.avg(col))
+                  .filter(Record.user_id.in_(user_ids))
+                  .group_by("m").order_by("m").all())
+        monthly = [{"month": m, "avg": round(v, 1) if v is not None else None} for m, v in rows]
 
     return {"metric": metric, "category": category, "unit": unit,
             "user_count": len(users), "users": users, "monthly": monthly}

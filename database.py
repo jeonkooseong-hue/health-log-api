@@ -38,9 +38,9 @@ class Record(Base):
     __tablename__ = "records"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 누구 기록인지
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # 누구 기록인지
 
-    date = Column(String, nullable=False)
+    date = Column(String, nullable=False, index=True)
     weight = Column(Float, nullable=False)
     height = Column(Float, nullable=False)
     systolic = Column(Integer, nullable=False)
