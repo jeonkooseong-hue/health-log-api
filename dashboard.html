@@ -201,6 +201,7 @@
       <section class="card">
         <h2>관리자 권한</h2>
         <p class="muted-dash" id="adminHint" style="margin:-6px 0 12px"></p>
+        <div class="toolbar" id="promoteBox"></div>
         <div class="tbl-scroll"><table>
           <thead><tr><th>ID</th><th>이름</th><th>현재 권한</th><th>권한 변경</th></tr></thead>
           <tbody id="adminsBody"></tbody></table></div>
@@ -415,15 +416,22 @@ async function setStatus(id,status){
 /* ---------- 관리자 탭 (권한) ---------- */
 function renderAdmins(){
   const isSuper=myRole==="superadmin";
-  $("adminHint").textContent=isSuper?"권한 변경은 슈퍼관리자만 가능합니다.":"조회 전용 (권한 변경은 슈퍼관리자만).";
+  $("adminHint").textContent=isSuper?"관리자·슈퍼관리자 목록. 아래에서 일반 회원을 관리자로 지정할 수 있어요.":"조회 전용 (권한 변경은 슈퍼관리자만).";
   const rOpt=(cur)=>["user","admin","superadmin"].map(v=>`<option value="${v}" ${cur===v?"selected":""}>${v}</option>`).join("");
-  // 관리자/슈퍼 + (슈퍼면 전체) — 여기선 admin·superadmin 위주로 보여주되, 승격 위해 전체도 필요 → 전체 표시
-  $("adminsBody").innerHTML=usersCache.map(u=>{
+  const admins=usersCache.filter(u=>u.role!=="user");
+  $("adminsBody").innerHTML=admins.map(u=>{
     const ctrl=isSuper?`<select class="role-sel" data-id="${u.id}">${rOpt(u.role)}</select>`:`<span class="muted-dash">-</span>`;
     return `<tr><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
       `<td><span class="role-badge ${u.role}">${u.role}</span></td><td>${ctrl}</td></tr>`;
-  }).join("");
+  }).join("")||`<tr><td colspan="4" class="muted-dash">관리자가 없어요.</td></tr>`;
   if(isSuper) $("adminsBody").querySelectorAll(".role-sel").forEach(s=>s.onchange=()=>setRole(parseInt(s.dataset.id),s.value));
+  // 일반 회원 → 관리자 승격
+  if(isSuper){
+    const regs=usersCache.filter(u=>u.role==="user"&&u.status==="active");
+    $("promoteBox").innerHTML=`<select class="filter-sel" id="promoteSel"><option value="">일반 회원 선택…</option>`+
+      regs.map(u=>`<option value="${u.id}">${u.username}</option>`).join("")+`</select><button class="btn" id="promoteBtn">관리자로 지정</button>`;
+    $("promoteBtn").onclick=()=>{ const id=$("promoteSel").value; if(id) setRole(parseInt(id),"admin"); };
+  } else { $("promoteBox").innerHTML=""; }
 }
 async function setRole(id,role){
   const res=await fetch(`/admin/users/${id}/role`,{method:"PUT",headers:{"Content-Type":"application/json",...authHead()},body:JSON.stringify({role})});

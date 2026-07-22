@@ -74,7 +74,7 @@
     margin:0 0 14px;font-weight:600}
 
   /* KPI readouts */
-  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     box-shadow:var(--shadow);padding:16px}
   .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
@@ -116,6 +116,16 @@
   .dp-day{height:30px;border:none;background:none;border-radius:7px;font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit;font-variant-numeric:tabular-nums}
   .dp-day:hover{background:var(--field)}
   .dp-day.sel{background:var(--brand);color:#fff}
+  .hist-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .dp-in{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:13px}
+  .btn-mini{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-mini:hover{color:var(--ink);border-color:var(--muted)}
+  tr.month-sep td{background:var(--field);font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600}
+  .tips{display:flex;flex-direction:column;gap:10px}
+  .tip{border-left:3px solid var(--brand);background:var(--field);border-radius:0 10px 10px 0;padding:10px 12px}
+  .tip-t{font-weight:700;font-size:14px}
+  .tip-d{font-size:13px;color:var(--ink);margin-top:2px}
+  .tip-f{font-size:12px;color:var(--brand-ink);margin-top:5px}
   table.hist{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
   table.hist th,table.hist td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
   table.hist th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
@@ -239,6 +249,11 @@
     </section>
 
     <section class="card">
+      <h2>오늘의 건강 조언</h2>
+      <div class="tips" id="advice"></div>
+    </section>
+
+    <section class="card">
       <h2>새 기록</h2>
       <form id="recForm">
         <div class="grid">
@@ -345,7 +360,9 @@ async function loadAll(){
   ]);
   if (recRes.status === 401){ showAuth(); return; }
   renderRecords((await recRes.json()).records);
-  renderKpis(await statRes.json());
+  renderKpis();
+  renderAdvice();
+  await statRes.json();
   renderReport(await repRes.json());
 
   const me = await meRes.json();
@@ -353,29 +370,35 @@ async function loadAll(){
   else $("adminLink").classList.add("hidden");
 }
 
-function renderKpis(s){
+function renderKpis(){
   const box = $("kpis");
-  if (!s || s.count === 0){
+  if (!recordsCache.length){
     box.innerHTML = `
       <div class="kpi"><div class="k-label">총 기록</div><div class="k-val">0</div></div>
-      <div class="kpi"><div class="k-label">평균 체중</div><div class="k-val">—</div></div>
-      <div class="kpi"><div class="k-label">평균 BMI</div><div class="k-val">—</div></div>`;
+      <div class="kpi"><div class="k-label">최근 체중</div><div class="k-val">—</div></div>
+      <div class="kpi"><div class="k-label">최근 혈압</div><div class="k-val">—</div></div>
+      <div class="kpi"><div class="k-label">최근 혈당</div><div class="k-val">—</div></div>`;
     return;
   }
+  const r = recordsCache[0];   // 최신 기록
+  const chip = (c) => `<span class="chip ${statusClass(c)}">${c}</span>`;
   box.innerHTML = `
     <button class="kpi kpi-click" data-act="history"><div class="k-label">총 기록</div>
-      <div class="k-val">${s.count}<span class="k-unit">건</span></div>
-      <div class="k-hint">클릭 → 전체 기록 보기</div></button>
-    <button class="kpi kpi-click" data-act="weight"><div class="k-label">평균 체중</div>
-      <div class="k-val">${s.avg_weight}<span class="k-unit">kg</span></div>
-      <div class="k-hint">클릭 → 체중 추이</div></button>
-    <button class="kpi kpi-click" data-act="bmi"><div class="k-label">평균 BMI</div>
-      <div class="k-val">${s.avg_bmi}</div>
-      <div class="k-hint">클릭 → BMI 추이</div></button>`;
+      <div class="k-val">${recordsCache.length}<span class="k-unit">건</span></div>
+      <div class="k-hint">클릭 → 전체 기록</div></button>
+    <button class="kpi kpi-click" data-act="weight"><div class="k-label">최근 체중</div>
+      <div class="k-val">${r.weight}<span class="k-unit">kg</span></div>
+      <div class="k-sub">BMI ${r.bmi} ${chip(r.bmi_category)}</div></button>
+    <button class="kpi kpi-click" data-act="bp"><div class="k-label">최근 혈압</div>
+      <div class="k-val">${r.systolic}<span class="k-unit">/${r.diastolic}</span></div>
+      <div class="k-sub">${chip(r.bp_category)}</div></button>
+    <button class="kpi kpi-click" data-act="sugar"><div class="k-label">최근 혈당</div>
+      <div class="k-val">${r.blood_sugar}<span class="k-unit">mg/dL</span></div>
+      <div class="k-sub">${chip(r.sugar_category)}</div></button>`;
   box.querySelectorAll(".kpi-click").forEach(b => b.onclick = () => {
     const a = b.dataset.act;
     if (a === "history") openHistory();
-    else openTrend(a);   // "weight" | "bmi"
+    else openTrend(a);   // weight | bp | sugar
   });
 }
 
@@ -535,47 +558,100 @@ $("recForm").addEventListener("submit", async (e) => {
 });
 
 // ----- 그래프 / 히스토리 모달 -----
-function lineChart(series, color){
+function lineChart(series, color, bands){
   const clean = series.filter(s => s.value != null);
   if (!clean.length) return `<div class="detail-empty">데이터 없음</div>`;
-  const W=620,H=210,pl=44,pr=14,pt=16,pb=28,n=clean.length;
+  const W=620,H=210,pl=44,pr=48,pt=16,pb=28,n=clean.length;
   const vals=clean.map(s=>s.value);
-  let mn=Math.min(...vals), mx=Math.max(...vals); if (mn===mx){ mn-=1; mx+=1; }
+  let mn=Math.min(...vals), mx=Math.max(...vals);
+  if (bands) bands.forEach(b=>{ mn=Math.min(mn,b.y); mx=Math.max(mx,b.y); });
+  if (mn===mx){ mn-=1; mx+=1; }
+  const gap=(mx-mn)*0.08; mn-=gap; mx+=gap;
   const iw=W-pl-pr, ih=H-pt-pb;
   const X=i=> pl + (n===1? iw/2 : iw*i/(n-1));
   const Y=v=> pt + ih*(1-(v-mn)/(mx-mn));
   const pts=clean.map((s,i)=>`${X(i).toFixed(1)},${Y(s.value).toFixed(1)}`).join(" ");
   const area=`${pl},${(pt+ih).toFixed(1)} ${pts} ${X(n-1).toFixed(1)},${(pt+ih).toFixed(1)}`;
+  let bandSvg="";
+  if (bands) bands.forEach(b=>{ const yy=Y(b.y);
+    bandSvg+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="${b.color}" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/>`+
+      `<text x="${W-pr+3}" y="${(yy+3).toFixed(1)}" font-size="9" fill="${b.color}">${b.label}</text>`; });
   const step=Math.max(1, Math.ceil(n/8));
   const dots = n<=45 ? clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="2.5" fill="${color}"/>`).join("") : "";
   const xlab = clean.map((s,i)=> (i%step===0||i===n-1) ? `<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>` : "").join("");
-  const ylab = `<text x="6" y="${(Y(mx)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mx}</text>`+
-               `<text x="6" y="${(Y(mn)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mn}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">
-    <polygon points="${area}" fill="${color}" opacity="0.08"/>
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xlab}${ylab}</svg>`;
+    ${bandSvg}<polygon points="${area}" fill="${color}" opacity="0.08"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xlab}</svg>`;
 }
 
+function monthRows(records, cells){
+  const asc = records.slice().sort((a,b)=> a.date < b.date ? 1 : -1);  // 최신 먼저
+  let html="", cur="";
+  for (const r of asc){ const m=r.date.slice(0,7);
+    if (m!==cur){ cur=m; html+=`<tr class="month-sep"><td colspan="9">${m}</td></tr>`; }
+    html+=`<tr>${cells(r)}</tr>`; }
+  return html;
+}
+
+const TREND_CONF = {
+  weight:{title:"체중 추이 (kg)", val:r=>r.weight, bands:null},
+  bmi:{title:"BMI 추이", val:r=>r.bmi, bands:[{y:18.5,label:"저체중",color:"#3b82f6"},{y:23,label:"정상↑",color:"var(--warn-dot)"},{y:25,label:"비만",color:"var(--bad-dot)"}]},
+  bp:{title:"수축기 혈압 추이", val:r=>r.systolic, bands:[{y:120,label:"주의",color:"var(--warn-dot)"},{y:140,label:"고혈압",color:"var(--bad-dot)"}]},
+  sugar:{title:"공복 혈당 추이 (mg/dL)", val:r=>r.blood_sugar, bands:[{y:100,label:"공복혈당장애",color:"var(--warn-dot)"},{y:126,label:"당뇨 의심",color:"var(--bad-dot)"}]},
+};
 function openTrend(metric){
-  const asc = recordsCache.slice().sort((a,b)=> a.date < b.date ? -1 : 1);   // 오래된 → 최신
-  const pts = asc.map(r => ({label:r.date.slice(5), value: metric==="weight" ? r.weight : r.bmi}));
-  const title = metric==="weight" ? "체중 추이 (kg)" : "BMI 추이";
-  $("modalBody").innerHTML = `<h3 class="modal-title">${title}</h3>${lineChart(pts, "var(--brand)")}
-    <p class="detail-empty" style="text-align:left;padding:8px 0 0">${asc.length}개 기록 · ${asc[0]?.date} ~ ${asc[asc.length-1]?.date}</p>`;
+  const c = TREND_CONF[metric] || TREND_CONF.weight;
+  const asc = recordsCache.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+  const pts = asc.map(r => ({label:r.date.slice(5), value:c.val(r)}));
+  $("modalBody").innerHTML = `<h3 class="modal-title">${c.title}</h3>${lineChart(pts, "var(--brand)", c.bands)}
+    <p class="detail-empty" style="text-align:left;padding:8px 0 0">${asc.length}개 · ${asc[0]?.date} ~ ${asc[asc.length-1]?.date}</p>`;
   $("uiModal").classList.remove("hidden");
 }
 
 function openHistory(){
-  const chip = (c) => `<span class="chip ${statusClass(c)}">${c}</span>`;
-  const rows = recordsCache.map(r =>
-    `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
-    `<td>${chip(r.bmi_category)}</td><td class="num">${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
-    `<td>${r.memo || "—"}</td></tr>`).join("") || `<tr><td colspan="7" class="detail-empty">기록 없음</td></tr>`;
   $("modalBody").innerHTML = `<h3 class="modal-title">전체 기록 (${recordsCache.length}건)</h3>
-    <div class="tbl-scroll"><table class="hist">
+    <div class="hist-toolbar"><input class="dp-in" id="hStart" placeholder="시작일" readonly>
+      <input class="dp-in" id="hEnd" placeholder="종료일" readonly><button class="btn-mini" id="hReset">전체</button></div>
+    <div id="histTable"></div>`;
+  const chip = (c) => `<span class="chip ${statusClass(c)}">${c}</span>`;
+  function render(){
+    const s=$("hStart").value, e=$("hEnd").value;
+    let list = recordsCache;
+    if (s) list = list.filter(r=>r.date>=s);
+    if (e) list = list.filter(r=>r.date<=e);
+    const body = monthRows(list, (r)=>
+      `<td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
+      `<td>${chip(r.bmi_category)}</td><td class="num">${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
+      `<td>${r.memo||"—"}</td>`) || `<tr><td colspan="7" class="detail-empty">해당 기간 기록 없음</td></tr>`;
+    $("histTable").innerHTML = `<p class="detail-empty" style="text-align:left">${list.length}건</p>
+      <div class="tbl-scroll"><table class="hist">
       <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+      <tbody>${body}</tbody></table></div>`;
+  }
+  attachDatePicker($("hStart")); attachDatePicker($("hEnd"));
+  $("hStart").addEventListener("change", render); $("hEnd").addEventListener("change", render);
+  $("hReset").onclick = () => { $("hStart").value=""; $("hEnd").value=""; render(); };
+  render();
   $("uiModal").classList.remove("hidden");
+}
+
+function renderAdvice(){
+  const box = $("advice");
+  if (!box) return;
+  if (!recordsCache.length){ box.innerHTML = `<p class="muted-dash">기록을 추가하면 맞춤 조언을 드려요.</p>`; return; }
+  const r = recordsCache[0];
+  const tips = [];
+  if (r.bmi_category==="비만") tips.push({t:"체중 관리", d:"유산소 운동(주 150분)과 칼로리 조절을 권장해요.", f:"채소·단백질 위주, 정제탄수·튀김 줄이기"});
+  else if (r.bmi_category==="과체중") tips.push({t:"체중 주의", d:"가벼운 유산소와 식사량 조절로 정상 범위를 목표로 해요.", f:"저칼로리 간식, 야식 줄이기"});
+  else if (r.bmi_category==="저체중") tips.push({t:"영양 보충", d:"규칙적 식사와 단백질 섭취로 체중을 늘려요.", f:"견과류·계란·유제품 등 영양 밀도 높은 식품"});
+  if (r.bp_category==="고혈압") tips.push({t:"혈압 관리", d:"나트륨과 음주를 줄이고 스트레스를 관리하세요.", f:"저염식, 국물·가공식품 줄이기, 칼륨 많은 채소·과일"});
+  else if (r.bp_category==="주의") tips.push({t:"혈압 주의", d:"짠 음식·카페인을 줄이고 꾸준히 측정하세요.", f:"싱겁게 먹기"});
+  if (r.sugar_category==="당뇨 의심") tips.push({t:"혈당 관리", d:"단순당·정제탄수화물을 줄이고 식후 가벼운 운동을 하세요.", f:"저GI 식품(현미·통곡물·콩), 단 음료 피하기"});
+  else if (r.sugar_category==="공복혈당장애") tips.push({t:"혈당 주의", d:"당 섭취를 줄이고 규칙적으로 식사하세요.", f:"흰쌀·설탕 줄이기, 식이섬유 늘리기"});
+  if ((r.steps||0) < 5000) tips.push({t:"활동량 부족", d:"하루 7천~1만 걸음을 목표로 활동을 늘려보세요.", f:""});
+  if (r.sleep_hours>0 && r.sleep_hours<6) tips.push({t:"수면 부족", d:"하루 7~8시간 수면을 권장해요.", f:""});
+  if (!tips.length) tips.push({t:"좋은 상태", d:"현재 수치가 모두 양호해요. 지금 습관을 유지하세요! 👍", f:""});
+  box.innerHTML = tips.map(x=>`<div class="tip"><div class="tip-t">${x.t}</div><div class="tip-d">${x.d}</div>${x.f?`<div class="tip-f">🍽 ${x.f}</div>`:""}</div>`).join("");
 }
 
 function closeUiModal(){ $("uiModal").classList.add("hidden"); }
