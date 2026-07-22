@@ -13,7 +13,7 @@ erDiagram
         string hashed_password "bcrypt 해시된 비밀번호"
         string role "권한: user / admin / superadmin"
         datetime created_at "가입일시"
-        int is_active "1=활성 / 0=탈퇴(소프트 삭제)"
+        string status "active(활성)/dormant(휴면)/withdrawn(탈퇴)"
     }
 
     RECORD {

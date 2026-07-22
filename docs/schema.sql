@@ -8,7 +8,7 @@ CREATE TABLE users (
     hashed_password VARCHAR(255) NOT NULL,
     role            VARCHAR(20)  NOT NULL DEFAULT 'user',  -- user / admin / superadmin
     created_at      DATETIME,                              -- 가입일시
-    is_active       INT          NOT NULL DEFAULT 1,       -- 1=활성, 0=탈퇴(소프트 삭제)
+    status          VARCHAR(20)  NOT NULL DEFAULT 'active', -- active(활성)/dormant(휴면)/withdrawn(탈퇴)
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -26,32 +26,29 @@
     }
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);
-    -webkit-font-smoothing:antialiased;line-height:1.5}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
   .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 64px}
-
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:6px 2px 22px;flex-wrap:wrap}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 2px 18px;flex-wrap:wrap}
   .title{display:flex;align-items:center;gap:10px}
   .title h1{font-size:18px;margin:0;letter-spacing:-.01em}
   .badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--brand);color:#fff}
   .actions{display:flex;gap:8px}
-  .btn{text-decoration:none;font-size:13px;padding:7px 13px;border-radius:9px;
-    border:1px solid var(--line);color:var(--muted);background:var(--card);cursor:pointer;font-family:inherit}
+  .btn{text-decoration:none;font-size:13px;padding:7px 13px;border-radius:9px;border:1px solid var(--line);color:var(--muted);background:var(--card);cursor:pointer;font-family:inherit}
   .btn:hover{color:var(--ink);border-color:var(--muted)}
 
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
-  .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-  .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:8px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .kpi-click{cursor:pointer;font:inherit;text-align:left;width:100%}
-  .kpi-click:hover{border-color:var(--brand)}
-  .kpi .k-hint{font-size:11px;color:var(--brand);margin-top:6px}
+  /* 고정 위험군 카드 */
+  .risk-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .rcard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px;cursor:pointer;font:inherit;text-align:left;width:100%}
+  .rcard:hover{border-color:var(--brand)}
+  .rcard.bad{border-left-color:var(--bad)} .rcard.warn{border-left-color:var(--warn)}
+  .rcard .r-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .rcard .r-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums}
+  .rcard .r-val .r-tot{font-family:var(--sans);font-size:14px;color:var(--muted)}
+  .rcard .r-hint{font-size:11px;color:var(--brand);margin-top:5px}
 
-  /* tabs */
-  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
-  .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;
-    font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;font-family:inherit;margin-bottom:-1px}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;font-family:inherit;margin-bottom:-1px}
   .tab:hover{color:var(--ink)}
   .tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
   .tab-panel.hidden{display:none}
@@ -60,19 +57,71 @@
   .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 16px;font-weight:600}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
-  .bars{display:flex;flex-direction:column;gap:10px}
-  .bar-row{display:grid;grid-template-columns:120px 1fr 48px;align-items:center;gap:10px;font-size:13px}
-  .bar-label{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-track{background:var(--field);border-radius:6px;height:22px;overflow:hidden}
-  .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;transition:width .5s ease}
-  .bar-val{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
-  .c-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .bar-label{display:flex;align-items:center}
-  .bar-click{cursor:pointer;background:none;border:none;font:inherit;text-align:left;padding:6px;border-radius:8px;width:100%}
-  .bar-click:hover{background:var(--field)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .search,.filter-sel{padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--field);color:var(--ink);font-size:14px;font-family:inherit}
+  .search{flex:1;min-width:150px}
+  .search:focus,.filter-sel:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:460px}
+  .tbl-scroll{overflow-x:auto}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  tr.month-sep td{background:var(--field);font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+  tr.risk-row{background:color-mix(in srgb, var(--bad-bg) 55%, transparent)}
+
+  .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--field);color:var(--muted)}
+  .role-badge.admin{background:var(--brand);color:#fff}
+  .role-badge.superadmin{background:var(--bad);color:#fff}
+  .role-sel,.status-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
+  .hchip{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
+  .hchip.h-ok{color:var(--ok);background:var(--ok-bg)} .hchip.h-warn{color:var(--warn);background:var(--warn-bg)}
+  .hchip.h-bad{color:var(--bad);background:var(--bad-bg)} .hchip.h-none{color:var(--muted);background:var(--field)}
+  .st-chip{font-size:11px;padding:2px 8px;border-radius:6px}
+  .st-active{color:var(--ok);background:var(--ok-bg)} .st-dormant{color:var(--warn);background:var(--warn-bg)} .st-withdrawn{color:var(--bad);background:var(--bad-bg)}
+  .muted-dash{color:var(--muted);font-size:13px}
+  .manage-cell{display:flex;gap:8px;align-items:center}
+  .btn-view{background:none;border:1px solid var(--line);color:var(--brand);padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+  .btn-view:hover{background:var(--field);border-color:var(--brand)}
+  .act-chip{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
+  .act-chip.fail{color:var(--bad)}
+
+  /* 분포 숫자형 */
+  .dist{display:flex;flex-direction:column;gap:2px}
+  .dist-item{display:flex;align-items:center;gap:10px;padding:10px 8px;border:none;background:none;border-radius:8px;cursor:pointer;font:inherit;width:100%;text-align:left;border-bottom:1px solid var(--line)}
+  .dist-item:hover{background:var(--field)}
+  .di-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .di-label{flex:1;font-size:14px}
+  .di-val{font-family:var(--mono);font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
+  .di-pct{font-family:var(--sans);font-size:11px;color:var(--muted);font-weight:400;margin-left:4px}
+
   .chart-title{font-size:12px;color:var(--muted)}
+
+  .pager{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px}
+  .pager-info{font-size:12px;color:var(--muted);margin-right:auto}
+  .pg{min-width:32px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit}
+  .pg:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+  .pg.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .pg:disabled{opacity:.4;cursor:default}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,15,20,.55);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto;z-index:100}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);max-width:700px;width:100%;padding:26px;position:relative}
+  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
+  .modal-close:hover{color:var(--ink)}
+  .detail-head2{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .detail-name{font-size:19px;font-weight:700}
+  .detail-meta{color:var(--muted);font-size:13px;margin:8px 0 0}
+  h3.sub2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:20px 0 8px;font-weight:600}
+  .vitals{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:12px 0}
+  .vit{background:var(--field);border-radius:10px;padding:12px 10px;text-align:center}
+  .vit-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .vit-val{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .vit-val span{font-family:var(--sans);font-size:11px;color:var(--muted);margin-left:2px}
+  .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-del-user:hover{background:var(--bad-bg)}
   .row-click{cursor:pointer}
   .row-click:hover{background:var(--field)}
+
   .dp-pop{position:fixed;z-index:200;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:10px;width:236px}
   .dp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
   .dp-head b{font-size:13px}
@@ -86,64 +135,9 @@
   .dp-day:hover{background:var(--field)}
   .dp-day.sel{background:var(--brand);color:#fff}
   .dp-clear{width:100%;margin-top:8px;background:none;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}
-  .dp-clear:hover{color:var(--ink)}
-  .kpi .k-unit{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:2px}
 
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .search,.filter-sel{padding:8px 12px;border:1px solid var(--line);border-radius:9px;
-    background:var(--field);color:var(--ink);font-size:14px;font-family:inherit}
-  .search{flex:1;min-width:160px}
-  .search:focus,.filter-sel:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
-
-  table{border-collapse:collapse;width:100%;font-size:13px;min-width:460px}
-  .tbl-scroll{overflow-x:auto}
-  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
-  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-  .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--field);color:var(--muted)}
-  .role-badge.admin{background:var(--brand);color:#fff}
-  .role-badge.superadmin{background:var(--bad);color:#fff}
-  .wd-badge{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bad-bg);color:var(--bad);margin-left:2px}
-  .row-wd{opacity:.55}
-  .role-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
-  .muted-dash{color:var(--muted);font-size:13px}
-  .manage-cell{display:flex;gap:8px;align-items:center}
-  .btn-view{background:none;border:1px solid var(--line);color:var(--brand);padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
-  .btn-view:hover{background:var(--field);border-color:var(--brand)}
-  .act-chip{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
-  .act-chip.fail{color:var(--bad)}
-
-  /* pager */
-  .pager{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px}
-  .pager-info{font-size:12px;color:var(--muted);margin-right:auto}
-  .pg{min-width:32px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);
-    color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit}
-  .pg:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
-  .pg.active{background:var(--brand);color:#fff;border-color:var(--brand)}
-  .pg:disabled{opacity:.4;cursor:default}
-
-  /* modal */
-  .modal-overlay{position:fixed;inset:0;background:rgba(10,15,20,.55);display:flex;
-    align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto;z-index:100}
-  .modal{background:var(--card);border:1px solid var(--line);border-radius:16px;
-    box-shadow:0 24px 70px rgba(0,0,0,.35);max-width:680px;width:100%;padding:26px;position:relative}
-  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
-  .modal-close:hover{color:var(--ink)}
-  .detail-head2{display:flex;align-items:center;gap:10px}
-  .detail-name{font-size:19px;font-weight:700}
-  .detail-meta{color:var(--muted);font-size:13px;margin:8px 0 0}
-  h3.sub2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:20px 0 8px;font-weight:600}
-  .vitals{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:12px 0}
-  .vit{background:var(--field);border-radius:10px;padding:12px 10px;text-align:center}
-  .vit-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-  .vit-val{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
-  .vit-val span{font-family:var(--sans);font-size:11px;color:var(--muted);margin-left:2px}
-  .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
-  .btn-del-user:hover{background:var(--bad-bg)}
-
-  /* guard (login/signup) */
-  .guard{max-width:420px;margin:12vh auto;text-align:center;background:var(--card);
-    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 28px}
+  /* guard */
+  .guard{max-width:420px;margin:12vh auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px 28px}
   .guard h1{font-size:19px;margin:0 0 8px}
   .guard p{color:var(--muted);font-size:14px;margin:0 0 20px}
   .guard label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:12px}
@@ -158,59 +152,58 @@
   .gmsg{font-size:13px;min-height:18px;margin-top:12px}
   .gmsg.err{color:var(--bad)} .gmsg.ok{color:var(--ok)}
   .hidden{display:none}
-  @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} .vitals{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:760px){ .risk-cards{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} .vitals{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <!-- 로그인 / 권한 없을 때 -->
   <section class="guard hidden" id="guard">
     <h1 id="guardTitle">관리자 로그인</h1>
     <p id="guardMsg">관리자 계정으로 로그인하면 대시보드가 열려요.</p>
     <label><span>아이디</span><input id="gu" autocomplete="username"></label>
     <label><span>비밀번호</span><input id="gp" type="password" autocomplete="current-password"></label>
-    <div class="row">
-      <button class="primary" id="gLogin">로그인</button>
-      <button class="lineb" id="gSignup">회원가입</button>
-    </div>
+    <div class="row"><button class="primary" id="gLogin">로그인</button><button class="lineb" id="gSignup">회원가입</button></div>
     <div class="gmsg" id="gMsg"></div>
     <p style="margin:18px 0 0"><a class="btn" href="/ui">일반 기록 화면으로</a></p>
   </section>
 
-  <!-- 대시보드 -->
   <div class="hidden" id="board">
     <header>
       <div class="title"><h1>관리자 대시보드</h1><span class="badge" id="adminName">admin</span></div>
-      <div class="actions">
-        <a class="btn" href="/ui">기록 화면</a>
-        <button class="btn" id="logoutBtn">로그아웃</button>
-      </div>
+      <div class="actions"><a class="btn" href="/ui">기록 화면</a><button class="btn" id="logoutBtn">로그아웃</button></div>
     </header>
 
-    <div class="kpis" id="kpis"></div>
+    <!-- 고정 위험군 카드 -->
+    <div class="risk-cards" id="riskCards"></div>
 
     <nav class="tabs">
-      <button class="tab active" data-tab="users">사용자</button>
+      <button class="tab active" data-tab="users">회원</button>
+      <button class="tab" data-tab="admins">관리자</button>
       <button class="tab" data-tab="logs">활동 로그</button>
-      <button class="tab" data-tab="charts">통계</button>
+      <button class="tab" data-tab="stats">통계</button>
     </nav>
 
-    <!-- 사용자 탭 -->
+    <!-- 회원 탭 -->
     <div class="tab-panel" id="tab-users">
       <section class="card">
-        <h2>전체 사용자</h2>
-        <div class="toolbar">
-          <input class="search" id="userSearch" placeholder="이름으로 검색…" autocomplete="off">
-        </div>
-        <div class="tbl-scroll">
-          <table>
-            <thead><tr><th>ID</th><th>이름</th><th>권한</th><th>기록</th><th>가입일</th><th>관리</th></tr></thead>
-            <tbody id="usersBody"></tbody>
-          </table>
-        </div>
+        <h2>회원 관리</h2>
+        <div class="toolbar"><input class="search" id="userSearch" placeholder="이름으로 검색…" autocomplete="off"></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>ID</th><th>이름</th><th>계정 상태</th><th>건강 상태</th><th>기록</th><th>상세</th></tr></thead>
+          <tbody id="usersBody"></tbody></table></div>
         <div class="muted-dash" id="noUsers" style="display:none;padding:16px 0">검색 결과가 없어요.</div>
         <div class="pager" id="userPager"></div>
+      </section>
+    </div>
+
+    <!-- 관리자 탭 -->
+    <div class="tab-panel hidden" id="tab-admins">
+      <section class="card">
+        <h2>관리자 권한</h2>
+        <p class="muted-dash" id="adminHint" style="margin:-6px 0 12px"></p>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>ID</th><th>이름</th><th>현재 권한</th><th>권한 변경</th></tr></thead>
+          <tbody id="adminsBody"></tbody></table></div>
       </section>
     </div>
 
@@ -224,39 +217,28 @@
           <input type="text" class="filter-sel" id="logEnd" placeholder="종료일 클릭" readonly>
           <input class="search" id="logSearch" placeholder="사용자·상세 검색…" autocomplete="off">
         </div>
-        <div class="tbl-scroll">
-          <table>
-            <thead><tr><th>시각</th><th>사용자</th><th>동작</th><th>상세</th></tr></thead>
-            <tbody id="logsBody"></tbody>
-          </table>
-        </div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>시각</th><th>사용자</th><th>동작</th><th>상세</th></tr></thead>
+          <tbody id="logsBody"></tbody></table></div>
         <div class="muted-dash" id="noLogs" style="display:none;padding:16px 0">해당하는 로그가 없어요.</div>
         <div class="pager" id="logPager"></div>
       </section>
     </div>
 
     <!-- 통계 탭 -->
-    <div class="tab-panel hidden" id="tab-charts">
-      <div class="kpis" id="riskKpis"></div>
-      <section class="card">
-        <h2>월별 평균 추이 (전체 회원)</h2>
-        <div id="trendChart"></div>
-      </section>
-      <p class="muted-dash" style="margin:-4px 2px 12px">↓ 분포 막대를 클릭하면 해당 회원 목록과 추이 그래프를 볼 수 있어요.</p>
+    <div class="tab-panel hidden" id="tab-stats">
+      <section class="card"><h2>월별 평균 추이 (활성 회원)</h2><div id="trendChart"></div></section>
+      <p class="muted-dash" style="margin:-4px 2px 12px">↓ 분포 항목을 클릭하면 해당 회원 목록과 추이를 볼 수 있어요.</p>
       <div class="cols">
-        <section class="card"><h2>회원 BMI 분포 (최신 기준)</h2><div class="bars" id="bmiUserDist"></div></section>
-        <section class="card"><h2>회원 혈압 분포 (최신 기준)</h2><div class="bars" id="bpUserDist"></div></section>
+        <section class="card"><h2>회원 BMI 분포 (최신)</h2><div class="dist" id="bmiUserDist"></div></section>
+        <section class="card"><h2>회원 혈압 분포 (최신)</h2><div class="dist" id="bpUserDist"></div></section>
       </div>
-      <section class="card"><h2>회원 혈당 분포 (최신 기준)</h2><div class="bars" id="sugarUserDist"></div></section>
+      <section class="card"><h2>회원 혈당 분포 (최신)</h2><div class="dist" id="sugarUserDist"></div></section>
     </div>
   </div>
 
-  <!-- 회원 상세 팝업 -->
   <div class="modal-overlay hidden" id="userModal">
-    <div class="modal">
-      <button class="modal-close" id="modalClose" aria-label="닫기">✕</button>
-      <div id="userDetailBody"></div>
-    </div>
+    <div class="modal"><button class="modal-close" id="modalClose" aria-label="닫기">✕</button><div id="userDetailBody"></div></div>
   </div>
 </div>
 
@@ -268,364 +250,324 @@ let myRole = "";
 let usersCache = [], userPage = 1, userQuery = "";
 let logsCache = [], logPage = 1, logQuery = "", logActionFilter = "", logStart = "", logEnd = "";
 const U_SIZE = 10, L_SIZE = 15;
+const STATUS_KO = {active:"활성", dormant:"휴면", withdrawn:"탈퇴"};
 
 /* ---------- 인증 ---------- */
-function showGuard(title, msg){
-  $("guard").classList.remove("hidden"); $("board").classList.add("hidden");
-  if (title) $("guardTitle").textContent = title;
-  if (msg) $("guardMsg").textContent = msg;
-}
-$("logoutBtn").onclick = () => { localStorage.removeItem("token"); localStorage.removeItem("name"); checkAuth(); };
-
-$("gLogin").onclick = async () => {
-  const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
-  const body = new URLSearchParams({username:$("gu").value, password:$("gp").value});
-  const res = await fetch("/login", {method:"POST", body});
-  if (res.ok){ const d = await res.json(); localStorage.setItem("token", d.access_token); localStorage.setItem("name", $("gu").value); checkAuth(); }
-  else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "로그인 실패"; }
-};
-$("gSignup").onclick = async () => {
-  const m = $("gMsg"); m.className = "gmsg"; m.textContent = "";
-  const res = await fetch("/signup", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({username:$("gu").value, password:$("gp").value})});
-  if (res.ok){ const d = await res.json(); m.className = "gmsg ok"; m.textContent = `가입 완료 (권한: ${d.role}). 이제 로그인하세요.`; }
-  else { const e = await res.json(); m.className = "gmsg err"; m.textContent = e.detail || "가입 실패"; }
-};
-
+function showGuard(t,m){ $("guard").classList.remove("hidden"); $("board").classList.add("hidden"); if(t)$("guardTitle").textContent=t; if(m)$("guardMsg").textContent=m; }
+$("logoutBtn").onclick=()=>{ localStorage.removeItem("token"); localStorage.removeItem("name"); checkAuth(); };
+$("gLogin").onclick=async()=>{ const m=$("gMsg"); m.className="gmsg"; m.textContent="";
+  const res=await fetch("/login",{method:"POST",body:new URLSearchParams({username:$("gu").value,password:$("gp").value})});
+  if(res.ok){ const d=await res.json(); localStorage.setItem("token",d.access_token); localStorage.setItem("name",$("gu").value); checkAuth(); }
+  else { const e=await res.json(); m.className="gmsg err"; m.textContent=e.detail||"로그인 실패"; } };
+$("gSignup").onclick=async()=>{ const m=$("gMsg"); m.className="gmsg"; m.textContent="";
+  const res=await fetch("/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:$("gu").value,password:$("gp").value})});
+  if(res.ok){ const d=await res.json(); m.className="gmsg ok"; m.textContent=`가입 완료 (권한: ${d.role}). 로그인하세요.`; }
+  else { const e=await res.json(); m.className="gmsg err"; m.textContent=e.detail||"가입 실패"; } };
 async function checkAuth(){
-  if (!token()){ showGuard("관리자 로그인", "관리자 계정으로 로그인하면 대시보드가 열려요."); return; }
-  const meRes = await fetch("/me", {headers:authHead()});
-  if (meRes.status === 401){ showGuard("관리자 로그인", "세션이 만료됐어요. 다시 로그인해 주세요."); return; }
-  const me = await meRes.json();
-  if (me.role !== "admin" && me.role !== "superadmin"){
-    showGuard("관리자 권한이 없어요", `${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`); return;
-  }
-  myRole = me.role;
-  $("guard").classList.add("hidden"); $("board").classList.remove("hidden");
-  $("adminName").textContent = `${me.username} · ${me.role}`;
-  loadBoard();
+  if(!token()){ showGuard("관리자 로그인","관리자 계정으로 로그인하면 대시보드가 열려요."); return; }
+  const meRes=await fetch("/me",{headers:authHead()});
+  if(meRes.status===401){ showGuard("관리자 로그인","세션이 만료됐어요. 다시 로그인해 주세요."); return; }
+  const me=await meRes.json();
+  if(me.role!=="admin"&&me.role!=="superadmin"){ showGuard("관리자 권한이 없어요",`${me.username}님은 일반 사용자예요. 관리자 계정으로 로그인해 주세요.`); return; }
+  myRole=me.role; $("guard").classList.add("hidden"); $("board").classList.remove("hidden");
+  $("adminName").textContent=`${me.username} · ${me.role}`; loadBoard();
 }
-
-/* ---------- 탭 ---------- */
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
-  document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
-  $("tab-" + t.dataset.tab).classList.remove("hidden");
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.add("hidden"));
+  $("tab-"+t.dataset.tab).classList.remove("hidden");
 });
 
-/* ---------- 데이터 로드 ---------- */
-function bars(container, items){
-  const max = Math.max(1, ...items.map(i => i.value));
-  container.innerHTML = items.length ? items.map(i =>
-    `<div class="bar-row"><span class="bar-label">${i.label}</span>
-     <span class="bar-track"><span class="bar-fill" style="width:${(i.value/max*100)}%"></span></span>
-     <span class="bar-val">${i.value}</span></div>`).join("")
-    : `<div class="muted-dash">데이터 없음</div>`;
+/* ---------- 공통 ---------- */
+function statusColor(cat){
+  if(cat==="정상") return "var(--ok)";
+  if(["비만","고혈압","당뇨 의심"].includes(cat)) return "var(--bad)";
+  if(cat==="저체중") return "var(--info)";
+  return "var(--warn)";
 }
-
-function lineChart(series, color){
-  const clean = series.filter(s => s.value != null);
-  if (!clean.length) return `<div class="muted-dash">데이터 없음</div>`;
-  const W=560,H=180,pl=42,pr=14,pt=16,pb=26, n=clean.length;
-  const vals=clean.map(s=>s.value);
-  let mn=Math.min(...vals), mx=Math.max(...vals);
-  if (mn===mx){ mn-=1; mx+=1; }
+function healthChip(h){
+  if(!h) return `<span class="hchip h-none">—</span>`;
+  const c=h==="위험"?"h-bad":(h==="주의"?"h-warn":"h-ok");
+  return `<span class="hchip ${c}">${h}</span>`;
+}
+function lineChart(series, color, bands){
+  const clean=series.filter(s=>s.value!=null);
+  if(!clean.length) return `<div class="muted-dash">데이터 없음</div>`;
+  const W=560,H=190,pl=44,pr=44,pt=16,pb=26,n=clean.length;
+  const vals=clean.map(s=>s.value); let mn=Math.min(...vals),mx=Math.max(...vals);
+  if(bands) bands.forEach(b=>{ mn=Math.min(mn,b.y); mx=Math.max(mx,b.y); });
+  if(mn===mx){ mn-=1; mx+=1; }
+  const pad=(mx-mn)*0.08; mn-=pad; mx+=pad;
   const iw=W-pl-pr, ih=H-pt-pb;
-  const X=i=> pl + (n===1? iw/2 : iw*i/(n-1));
-  const Y=v=> pt + ih*(1-(v-mn)/(mx-mn));
+  const X=i=> pl+(n===1?iw/2:iw*i/(n-1));
+  const Y=v=> pt+ih*(1-(v-mn)/(mx-mn));
   const pts=clean.map((s,i)=>`${X(i).toFixed(1)},${Y(s.value).toFixed(1)}`).join(" ");
   const area=`${pl},${(pt+ih).toFixed(1)} ${pts} ${X(n-1).toFixed(1)},${(pt+ih).toFixed(1)}`;
-  const few = n <= 14;   // 점 적을 때만 점/값라벨 표시
-  const dots = few ? clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="3" fill="${color}"/>`).join("") : "";
-  const vlab = few ? clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${(Y(s.value)-8).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--ink)">${s.value}</text>`).join("") : "";
-  const step = Math.max(1, Math.ceil(n/8));   // x라벨 최대 ~8개
-  const xlab = clean.map((s,i)=> (i%step===0||i===n-1) ? `<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>` : "").join("");
-  const ylab = `<text x="6" y="${(Y(mx)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mx}</text>`+
-               `<text x="6" y="${(Y(mn)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mn}</text>`;
+  let bandSvg="";
+  if(bands) bands.forEach(b=>{ const yy=Y(b.y);
+    bandSvg+=`<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="${b.color}" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/>`+
+      `<text x="${W-pr+3}" y="${(yy+3).toFixed(1)}" font-size="9" fill="${b.color}">${b.label}</text>`; });
+  const few=n<=14;
+  const dots=few?clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="3" fill="${color}"/>`).join(""):"";
+  const vlab=few?clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${(Y(s.value)-8).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--ink)">${s.value}</text>`).join(""):"";
+  const step=Math.max(1,Math.ceil(n/8));
+  const xlab=clean.map((s,i)=>(i%step===0||i===n-1)?`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>`:"").join("");
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">
-    <polygon points="${area}" fill="${color}" opacity="0.08"/>
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}${ylab}</svg>`;
+    ${bandSvg}<polygon points="${area}" fill="${color}" opacity="0.08"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}</svg>`;
+}
+function monthRows(records, cells){
+  const asc=records.slice().sort((a,b)=> a.date<b.date?1:-1); // 최신 먼저
+  let html="", cur="";
+  for(const r of asc){ const m=r.date.slice(0,7);
+    if(m!==cur){ cur=m; html+=`<tr class="month-sep"><td colspan="9">${m}</td></tr>`; }
+    html+=`<tr>${cells(r)}</tr>`; }
+  return html;
 }
 
-function statusColor(cat){
-  if (cat === "정상") return "var(--ok)";
-  if (["비만","고혈압","당뇨 의심"].includes(cat)) return "var(--bad)";
-  if (cat === "저체중") return "var(--info)";
-  return "var(--warn)";   // 과체중, 주의, 공복혈당장애
-}
-
-function distBars(container, obj, order, metric){
-  const items = order.filter(k => obj[k] != null).map(k => ({label:k, value:obj[k]}));
-  const max = Math.max(1, ...items.map(i=>i.value));
-  container.innerHTML = items.length ? items.map(i => {
-    const c = statusColor(i.label);
-    return `<button class="bar-row bar-click" data-metric="${metric}" data-cat="${i.label}">
-       <span class="bar-label"><span class="c-dot" style="background:${c}"></span>${i.label}</span>
-       <span class="bar-track"><span class="bar-fill" style="width:${i.value/max*100}%;background:${c}"></span></span>
-       <span class="bar-val" style="color:${c}">${i.value}명</span></button>`;
-  }).join("") : `<div class="muted-dash">데이터 없음</div>`;
-  container.querySelectorAll(".bar-click").forEach(b =>
-    b.onclick = () => openGroupDetail(b.dataset.metric, b.dataset.cat));
-}
-
-async function openGroupDetail(metric, category){
-  const res = await fetch(`/admin/health-group?metric=${metric}&category=${encodeURIComponent(category)}`, {headers:authHead()});
-  if (!res.ok){ alert("불러오지 못했어요."); return; }
-  const d = await res.json();
-  const mname = d.unit || metric;
-  const chart = lineChart(d.monthly.map(m=>({label:m.month.slice(5), value:m.avg})), "var(--brand)");
-  const rows = d.users.map(u =>
-    `<tr class="row-click" data-id="${u.id}"><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
-    || `<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
-  $("userDetailBody").innerHTML = `
-    <div class="detail-head2"><span class="detail-name">${d.category}</span><span class="role-badge">${d.user_count}명</span></div>
-    <p class="detail-meta">최신 기록 기준 · ${mname} · 이름 클릭 시 상세</p>
-    <h3 class="sub2">이 그룹의 월별 평균 ${mname}</h3>${chart}
-    <h3 class="sub2">회원 목록 (${mname} 높은 순, ${d.user_count}명)</h3>
-    <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
-      <thead><tr><th>이름</th><th>${mname}</th><th>측정일</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
-  $("userDetailBody").querySelectorAll(".row-click").forEach(tr =>
-    tr.onclick = () => loadUserDetail(parseInt(tr.dataset.id)));
-  $("userModal").classList.remove("hidden");
-}
-
+/* ---------- 데이터 로드 ---------- */
 async function loadBoard(){
-  const [stats, users, logs, hs] = await Promise.all([
-    fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/users", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/logs?limit=500", {headers:authHead()}).then(r=>r.json()),
-    fetch("/admin/health-stats", {headers:authHead()}).then(r=>r.json()),
+  const [users, logs, hs] = await Promise.all([
+    fetch("/admin/users",{headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/logs?limit=500",{headers:authHead()}).then(r=>r.json()),
+    fetch("/admin/health-stats",{headers:authHead()}).then(r=>r.json()),
   ]);
+  // 고정 위험군 카드
+  const rk=hs.risk, uc=hs.user_count;
+  const rc=(m,c,label,val,tot)=>`<button class="rcard ${c==="warning"||["비만","고혈압","당뇨 의심"].includes(c)?"bad":"warn"}" data-m="${m}" data-c="${c}">
+    <div class="r-label">${label}</div><div class="r-val">${val}<span class="r-tot">/${tot}명</span></div><div class="r-hint">클릭 → 회원 목록</div></button>`;
+  $("riskCards").innerHTML =
+    rc("bmi","비만","비만 회원",rk.obese,uc)+rc("bp","고혈압","고혈압 회원",rk.hypertension,uc)+
+    rc("sugar","당뇨 의심","당뇨 의심 회원",rk.diabetes,uc)+rc("warning","warning","경고 있는 회원",rk.any_warning,uc);
+  $("riskCards").querySelectorAll(".rcard").forEach(b=>b.onclick=()=>openGroupDetail(b.dataset.m,b.dataset.c));
 
-  const adminCount = users.users.filter(u => u.role === "admin" || u.role === "superadmin").length;
-  $("kpis").innerHTML = `
-    <div class="kpi"><div class="k-label">사용자</div><div class="k-val">${stats.total_users}</div></div>
-    <div class="kpi"><div class="k-label">관리자</div><div class="k-val">${adminCount}</div></div>
-    <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${stats.total_records}</div></div>
-    <div class="kpi"><div class="k-label">활동 로그</div><div class="k-val">${stats.total_logs}</div></div>`;
-
-  // 사용자
-  usersCache = users.users; userPage = 1; renderUsers();
-
-  // 로그
-  logsCache = logs.logs; logPage = 1;
-  const actions = [...new Set(logsCache.map(l => l.action))].sort();
-  $("logAction").innerHTML = `<option value="">모든 동작</option>` + actions.map(a => `<option value="${a}">${a}</option>`).join("");
+  usersCache=users.users; userPage=1; renderUsers(); renderAdmins();
+  logsCache=logs.logs; logPage=1;
+  const actions=[...new Set(logsCache.map(l=>l.action))].sort();
+  $("logAction").innerHTML=`<option value="">모든 동작</option>`+actions.map(a=>`<option value="${a}">${a}</option>`).join("");
   renderLogs();
 
-  // 위험군 KPI (회원 단위, 최신 기록 기준)
-  const rk = hs.risk, uc = hs.user_count;
-  $("riskKpis").innerHTML = `
-    <button class="kpi kpi-click" data-m="bmi" data-c="비만"><div class="k-label">비만 회원</div><div class="k-val">${rk.obese}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
-    <button class="kpi kpi-click" data-m="bp" data-c="고혈압"><div class="k-label">고혈압 회원</div><div class="k-val">${rk.hypertension}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
-    <button class="kpi kpi-click" data-m="sugar" data-c="당뇨 의심"><div class="k-label">당뇨 의심 회원</div><div class="k-val">${rk.diabetes}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
-    <button class="kpi kpi-click" data-m="warning" data-c=""><div class="k-label">경고 있는 회원</div><div class="k-val">${rk.any_warning}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>`;
-  $("riskKpis").querySelectorAll(".kpi-click").forEach(b => b.onclick = () => openGroupDetail(b.dataset.m, b.dataset.c));
+  // 추이 (BMI 밴드 포함)
+  const ms=hs.monthly.map(m=>m.month.slice(5));
+  const bmiBands=[{y:18.5,label:"저체중",color:"var(--info)"},{y:23,label:"정상↑",color:"var(--warn)"},{y:25,label:"비만",color:"var(--bad)"}];
+  $("trendChart").innerHTML=
+    `<div class="chart-title">평균 BMI (기준선: 18.5 / 23 / 25)</div>`+
+    lineChart(hs.monthly.map((m,i)=>({label:ms[i],value:m.avg_bmi})),"var(--brand)",bmiBands)+
+    `<div class="chart-title" style="margin-top:16px">평균 체중 (kg)</div>`+
+    lineChart(hs.monthly.map((m,i)=>({label:ms[i],value:m.avg_weight})),"var(--bad)");
+  distNumbers($("bmiUserDist"),hs.bmi_user_dist,["저체중","정상","과체중","비만"],"bmi");
+  distNumbers($("bpUserDist"),hs.bp_user_dist,["정상","주의","고혈압"],"bp");
+  distNumbers($("sugarUserDist"),hs.sugar_user_dist,["정상","공복혈당장애","당뇨 의심"],"sugar");
+}
 
-  // 월별 추이 (평균 BMI + 평균 체중)
-  const ms = hs.monthly.map(m => m.month.slice(5));
-  $("trendChart").innerHTML =
-    `<div class="chart-title">평균 BMI</div>` +
-    lineChart(hs.monthly.map((m,i)=>({label:ms[i], value:m.avg_bmi})), "var(--brand)") +
-    `<div class="chart-title" style="margin-top:16px">평균 체중 (kg)</div>` +
-    lineChart(hs.monthly.map((m,i)=>({label:ms[i], value:m.avg_weight})), "var(--bad)");
-
-  // 회원 분포 (클릭 → 상세)
-  distBars($("bmiUserDist"), hs.bmi_user_dist, ["저체중","정상","과체중","비만"], "bmi");
-  distBars($("bpUserDist"), hs.bp_user_dist, ["정상","주의","고혈압"], "bp");
-  distBars($("sugarUserDist"), hs.sugar_user_dist, ["정상","공복혈당장애","당뇨 의심"], "sugar");
+function distNumbers(container,obj,order,metric){
+  const items=order.filter(k=>obj[k]!=null).map(k=>({label:k,value:obj[k]}));
+  const total=items.reduce((s,i)=>s+i.value,0);
+  container.innerHTML=items.length?items.map(i=>{ const c=statusColor(i.label), pct=total?Math.round(i.value/total*100):0;
+    return `<button class="dist-item bar-click" data-metric="${metric}" data-cat="${i.label}">
+      <span class="di-dot" style="background:${c}"></span><span class="di-label">${i.label}</span>
+      <span class="di-val" style="color:${c}">${i.value}<span class="di-pct">명 · ${pct}%</span></span></button>`;
+  }).join(""):`<div class="muted-dash">데이터 없음</div>`;
+  container.querySelectorAll(".bar-click").forEach(b=>b.onclick=()=>openGroupDetail(b.dataset.metric,b.dataset.cat));
 }
 
 /* ---------- 페이지네이션 ---------- */
-function renderPager(el, page, pages, total, unit, onGo){
-  if (total === 0){ el.innerHTML = ""; return; }
-  let html = `<span class="pager-info">총 ${total}${unit} · ${page}/${pages}페이지</span>`;
-  if (pages > 1){
-    html += `<button class="pg" ${page<=1?"disabled":""} data-p="${page-1}">‹</button>`;
-    const s = Math.max(1, page-2), e = Math.min(pages, page+2);
-    for (let p=s; p<=e; p++) html += `<button class="pg ${p===page?"active":""}" data-p="${p}">${p}</button>`;
-    html += `<button class="pg" ${page>=pages?"disabled":""} data-p="${page+1}">›</button>`;
-  }
-  el.innerHTML = html;
-  el.querySelectorAll(".pg").forEach(b => { if (!b.disabled) b.onclick = () => onGo(parseInt(b.dataset.p)); });
+function renderPager(el,page,pages,total,unit,onGo){
+  if(total===0){ el.innerHTML=""; return; }
+  let html=`<span class="pager-info">총 ${total}${unit} · ${page}/${pages}페이지</span>`;
+  if(pages>1){ html+=`<button class="pg" ${page<=1?"disabled":""} data-p="${page-1}">‹</button>`;
+    const s=Math.max(1,page-2),e=Math.min(pages,page+2);
+    for(let p=s;p<=e;p++) html+=`<button class="pg ${p===page?"active":""}" data-p="${p}">${p}</button>`;
+    html+=`<button class="pg" ${page>=pages?"disabled":""} data-p="${page+1}">›</button>`; }
+  el.innerHTML=html;
+  el.querySelectorAll(".pg").forEach(b=>{ if(!b.disabled) b.onclick=()=>onGo(parseInt(b.dataset.p)); });
 }
 
-/* ---------- 사용자 ---------- */
+/* ---------- 회원 탭 (계정 상태 + 건강 상태) ---------- */
 function renderUsers(){
-  const q = userQuery.trim().toLowerCase();
-  const list = q ? usersCache.filter(u => (u.username||"").toLowerCase().includes(q)) : usersCache;
-  const pages = Math.max(1, Math.ceil(list.length / U_SIZE));
-  if (userPage > pages) userPage = pages;
-  const slice = list.slice((userPage-1)*U_SIZE, userPage*U_SIZE);
-  $("noUsers").style.display = list.length ? "none" : "block";
-  const opt = (cur, v) => `<option value="${v}" ${cur===v?"selected":""}>${v}</option>`;
-  $("usersBody").innerHTML = slice.map(u => {
-    const joined = (u.created_at||"").slice(0,10) || "—";
-    const ctrl = (myRole === "superadmin")
-      ? `<select class="role-sel" data-id="${u.id}">${opt(u.role,"user")}${opt(u.role,"admin")}${opt(u.role,"superadmin")}</select>` : "";
-    const wd = u.is_active ? "" : ` <span class="wd-badge">탈퇴</span>`;
-    return `<tr class="${u.is_active ? "" : "row-wd"}"><td class="num">${u.id}</td><td>${u.username||"—"}${wd}</td>`+
-      `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
-      `<td class="num">${u.record_count}</td><td class="num">${joined}</td>`+
-      `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button>${ctrl}</td></tr>`;
+  const q=userQuery.trim().toLowerCase();
+  const list=q?usersCache.filter(u=>(u.username||"").toLowerCase().includes(q)):usersCache;
+  const pages=Math.max(1,Math.ceil(list.length/U_SIZE));
+  if(userPage>pages) userPage=pages;
+  const slice=list.slice((userPage-1)*U_SIZE,userPage*U_SIZE);
+  $("noUsers").style.display=list.length?"none":"block";
+  const stOpt=(cur)=>["active","dormant","withdrawn"].map(s=>`<option value="${s}" ${cur===s?"selected":""}>${STATUS_KO[s]}</option>`).join("");
+  $("usersBody").innerHTML=slice.map(u=>{
+    const risk=u.health==="위험";
+    const ctrl=`<select class="status-sel" data-id="${u.id}">${stOpt(u.status)}</select>`;
+    return `<tr class="${risk?"risk-row":""}"><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
+      `<td>${ctrl}</td><td>${healthChip(u.health)}</td>`+
+      `<td class="num">${u.record_count}</td>`+
+      `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button></td></tr>`;
   }).join("");
-  $("usersBody").querySelectorAll(".btn-view").forEach(b => b.onclick = () => loadUserDetail(parseInt(b.dataset.id)));
-  if (myRole === "superadmin")
-    $("usersBody").querySelectorAll(".role-sel").forEach(s => s.onchange = () => setRole(parseInt(s.dataset.id), s.value));
-  renderPager($("userPager"), userPage, pages, list.length, "명", (p)=>{ userPage=p; renderUsers(); });
+  $("usersBody").querySelectorAll(".btn-view").forEach(b=>b.onclick=()=>loadUserDetail(parseInt(b.dataset.id)));
+  $("usersBody").querySelectorAll(".status-sel").forEach(s=>s.onchange=()=>setStatus(parseInt(s.dataset.id),s.value));
+  renderPager($("userPager"),userPage,pages,list.length,"명",(p)=>{ userPage=p; renderUsers(); });
 }
-$("userSearch").oninput = (e) => { userQuery = e.target.value; userPage = 1; renderUsers(); };
+$("userSearch").oninput=(e)=>{ userQuery=e.target.value; userPage=1; renderUsers(); };
 
-/* ---------- 로그 ---------- */
-function renderLogs(){
-  let list = logsCache;
-  if (logActionFilter) list = list.filter(l => l.action === logActionFilter);
-  if (logStart) list = list.filter(l => (l.created_at||"").slice(0,10) >= logStart);
-  if (logEnd) list = list.filter(l => (l.created_at||"").slice(0,10) <= logEnd);
-  const q = logQuery.trim().toLowerCase();
-  if (q) list = list.filter(l => (l.username||"").toLowerCase().includes(q) || (l.detail||"").toLowerCase().includes(q));
-  const pages = Math.max(1, Math.ceil(list.length / L_SIZE));
-  if (logPage > pages) logPage = pages;
-  const slice = list.slice((logPage-1)*L_SIZE, logPage*L_SIZE);
-  $("noLogs").style.display = list.length ? "none" : "block";
-  $("logsBody").innerHTML = slice.map(l => {
-    const t = (l.created_at||"").replace("T"," ").slice(0,19);
-    const fail = l.action === "login_failed";
-    return `<tr><td class="num">${t}</td><td>${l.username||"—"}</td>`+
-      `<td><span class="act-chip ${fail?"fail":""}">${l.action}</span></td>`+
-      `<td>${l.detail||"—"}</td></tr>`;
-  }).join("");
-  renderPager($("logPager"), logPage, pages, list.length, "건", (p)=>{ logPage=p; renderLogs(); });
-}
-$("logAction").onchange = (e) => { logActionFilter = e.target.value; logPage = 1; renderLogs(); };
-$("logSearch").oninput = (e) => { logQuery = e.target.value; logPage = 1; renderLogs(); };
-$("logStart").onchange = (e) => { logStart = e.target.value; logPage = 1; renderLogs(); };
-$("logEnd").onchange = (e) => { logEnd = e.target.value; logPage = 1; renderLogs(); };
-
-/* ---------- 권한 변경 ---------- */
-async function setRole(id, role){
-  const res = await fetch(`/admin/users/${id}/role`, {method:"PUT",
-    headers:{"Content-Type":"application/json", ...authHead()}, body: JSON.stringify({role})});
-  if (!res.ok){ const e = await res.json(); alert(e.detail || "권한 변경 실패"); }
+async function setStatus(id,status){
+  const res=await fetch(`/admin/users/${id}/status`,{method:"PUT",headers:{"Content-Type":"application/json",...authHead()},body:JSON.stringify({status})});
+  if(!res.ok){ const e=await res.json(); alert(e.detail||"상태 변경 실패"); }
   loadBoard();
 }
 
-/* ---------- 회원 상세 모달 ---------- */
-function closeModal(){ $("userModal").classList.add("hidden"); }
-$("modalClose").onclick = closeModal;
-$("userModal").onclick = (e) => { if (e.target === $("userModal")) closeModal(); };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+/* ---------- 관리자 탭 (권한) ---------- */
+function renderAdmins(){
+  const isSuper=myRole==="superadmin";
+  $("adminHint").textContent=isSuper?"권한 변경은 슈퍼관리자만 가능합니다.":"조회 전용 (권한 변경은 슈퍼관리자만).";
+  const rOpt=(cur)=>["user","admin","superadmin"].map(v=>`<option value="${v}" ${cur===v?"selected":""}>${v}</option>`).join("");
+  // 관리자/슈퍼 + (슈퍼면 전체) — 여기선 admin·superadmin 위주로 보여주되, 승격 위해 전체도 필요 → 전체 표시
+  $("adminsBody").innerHTML=usersCache.map(u=>{
+    const ctrl=isSuper?`<select class="role-sel" data-id="${u.id}">${rOpt(u.role)}</select>`:`<span class="muted-dash">-</span>`;
+    return `<tr><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
+      `<td><span class="role-badge ${u.role}">${u.role}</span></td><td>${ctrl}</td></tr>`;
+  }).join("");
+  if(isSuper) $("adminsBody").querySelectorAll(".role-sel").forEach(s=>s.onchange=()=>setRole(parseInt(s.dataset.id),s.value));
+}
+async function setRole(id,role){
+  const res=await fetch(`/admin/users/${id}/role`,{method:"PUT",headers:{"Content-Type":"application/json",...authHead()},body:JSON.stringify({role})});
+  if(!res.ok){ const e=await res.json(); alert(e.detail||"권한 변경 실패"); }
+  loadBoard();
+}
 
+/* ---------- 활동 로그 ---------- */
+function renderLogs(){
+  let list=logsCache;
+  if(logActionFilter) list=list.filter(l=>l.action===logActionFilter);
+  if(logStart) list=list.filter(l=>(l.created_at||"").slice(0,10)>=logStart);
+  if(logEnd) list=list.filter(l=>(l.created_at||"").slice(0,10)<=logEnd);
+  const q=logQuery.trim().toLowerCase();
+  if(q) list=list.filter(l=>(l.username||"").toLowerCase().includes(q)||(l.detail||"").toLowerCase().includes(q));
+  const pages=Math.max(1,Math.ceil(list.length/L_SIZE));
+  if(logPage>pages) logPage=pages;
+  const slice=list.slice((logPage-1)*L_SIZE,logPage*L_SIZE);
+  $("noLogs").style.display=list.length?"none":"block";
+  $("logsBody").innerHTML=slice.map(l=>{ const t=(l.created_at||"").replace("T"," ").slice(0,19); const fail=l.action==="login_failed";
+    return `<tr><td class="num">${t}</td><td>${l.username||"—"}</td><td><span class="act-chip ${fail?"fail":""}">${l.action}</span></td><td>${l.detail||"—"}</td></tr>`;
+  }).join("");
+  renderPager($("logPager"),logPage,pages,list.length,"건",(p)=>{ logPage=p; renderLogs(); });
+}
+$("logAction").onchange=(e)=>{ logActionFilter=e.target.value; logPage=1; renderLogs(); };
+$("logSearch").oninput=(e)=>{ logQuery=e.target.value; logPage=1; renderLogs(); };
+$("logStart").addEventListener("change",()=>{ logStart=$("logStart").value; logPage=1; renderLogs(); });
+$("logEnd").addEventListener("change",()=>{ logEnd=$("logEnd").value; logPage=1; renderLogs(); });
+
+/* ---------- 그룹 상세 (기간 필터 + 위험군 색상) ---------- */
+async function openGroupDetail(metric,category){
+  const res=await fetch(`/admin/health-group?metric=${metric}&category=${encodeURIComponent(category)}`,{headers:authHead()});
+  if(!res.ok){ alert("불러오지 못했어요."); return; }
+  const d=await res.json();
+  const mname=d.unit||metric;
+  const isRisk=["비만","고혈압","당뇨 의심","경고 있는 회원"].includes(d.category);
+  const rowsHtml=(list)=>list.map(u=>
+    `<tr class="row-click ${isRisk?"risk-row":""}" data-id="${u.id}"><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
+    ||`<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
+  $("userDetailBody").innerHTML=`
+    <div class="detail-head2"><span class="detail-name">${d.category}</span><span class="role-badge">${d.user_count}명</span></div>
+    <p class="detail-meta">최신 기록 기준 · ${mname} · 이름 클릭 시 상세</p>
+    <div class="toolbar"><input class="filter-sel" id="grpStart" placeholder="시작월" readonly><input class="filter-sel" id="grpEnd" placeholder="종료월" readonly><button class="btn" id="grpReset">전체</button></div>
+    <h3 class="sub2">그룹 월별 평균 ${mname}</h3><div id="grpTrend"></div>
+    <h3 class="sub2">회원 목록 (${mname} 높은 순, ${d.user_count}명)</h3>
+    <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
+      <thead><tr><th>이름</th><th>${mname}</th><th>측정일</th></tr></thead><tbody>${rowsHtml(d.users)}</tbody></table></div>`;
+  function renderTrend(){
+    const s=$("grpStart").value, e=$("grpEnd").value;
+    let mon=d.monthly;
+    if(s) mon=mon.filter(m=>m.month>=s.slice(0,7));
+    if(e) mon=mon.filter(m=>m.month<=e.slice(0,7));
+    $("grpTrend").innerHTML=lineChart(mon.map(m=>({label:m.month.slice(5),value:m.avg})),"var(--brand)");
+  }
+  attachDatePicker($("grpStart")); attachDatePicker($("grpEnd"));
+  $("grpStart").addEventListener("change",renderTrend); $("grpEnd").addEventListener("change",renderTrend);
+  $("grpReset").onclick=()=>{ $("grpStart").value=""; $("grpEnd").value=""; renderTrend(); };
+  renderTrend();
+  $("userDetailBody").querySelectorAll(".row-click").forEach(tr=>tr.onclick=()=>loadUserDetail(parseInt(tr.dataset.id)));
+  $("userModal").classList.remove("hidden");
+}
+
+/* ---------- 회원 상세 (기간 필터 + 월 구분자) ---------- */
 async function loadUserDetail(id){
-  const res = await fetch(`/admin/users/${id}`, {headers:authHead()});
-  if (!res.ok){ alert("회원 정보를 불러오지 못했어요."); return; }
-  const d = await res.json();
-  const latest = d.records[0];
-  const vitals = latest ? `
-    <div class="vitals">
+  const res=await fetch(`/admin/users/${id}`,{headers:authHead()});
+  if(!res.ok){ alert("회원 정보를 불러오지 못했어요."); return; }
+  const d=await res.json();
+  const latest=d.records[0];
+  const vitals=latest?`<div class="vitals">
       <div class="vit"><div class="vit-label">체중</div><div class="vit-val">${latest.weight}<span>kg</span></div></div>
       <div class="vit"><div class="vit-label">키</div><div class="vit-val">${latest.height}<span>cm</span></div></div>
       <div class="vit"><div class="vit-label">BMI</div><div class="vit-val">${latest.bmi}</div></div>
       <div class="vit"><div class="vit-label">혈압</div><div class="vit-val">${latest.systolic}/${latest.diastolic}</div></div>
       <div class="vit"><div class="vit-label">혈당</div><div class="vit-val">${latest.blood_sugar}<span>mg/dL</span></div></div>
-    </div>` : `<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
-  const avg = d.stats ? `평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}` : "기록 없음";
-  const wdBadge = d.is_active ? "" : `<span class="wd-badge">탈퇴</span>`;
-  const actionBtn = (myRole === "superadmin")
-    ? (d.is_active
-        ? `<button class="btn-del-user" id="wdBtn">회원 탈퇴 처리</button>`
-        : `<p class="muted-dash" style="margin-top:16px">이미 탈퇴한 회원입니다. (기록은 보존됨)</p>`)
-    : "";
-  $("userDetailBody").innerHTML = `
-    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${wdBadge}</div>
+    </div>`:`<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
+  const avg=d.stats?`평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}`:"기록 없음";
+  const stChip=`<span class="st-chip st-${d.status}">${STATUS_KO[d.status]||d.status}</span>`;
+  const actionBtn=(myRole==="superadmin"&&d.status!=="withdrawn")?`<button class="btn-del-user" id="wdBtn">회원 탈퇴 처리</button>`:"";
+  $("userDetailBody").innerHTML=`
+    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${stChip}</div>
     <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
     <h3 class="sub2">최근 측정</h3>${vitals}
     <h3 class="sub2">기간별 기록</h3>
-    <div class="toolbar">
-      <input class="filter-sel" id="detStart" placeholder="시작일" readonly>
-      <input class="filter-sel" id="detEnd" placeholder="종료일" readonly>
-      <button class="btn" id="detReset">전체</button>
-    </div>
-    <div id="detTrend"></div>
-    <div id="detTable"></div>
-    ${actionBtn}`;
-
+    <div class="toolbar"><input class="filter-sel" id="detStart" placeholder="시작일" readonly><input class="filter-sel" id="detEnd" placeholder="종료일" readonly><button class="btn" id="detReset">전체</button></div>
+    <div id="detTrend"></div><div id="detTable"></div>${actionBtn}`;
   function renderPeriod(){
-    const s = $("detStart").value, e = $("detEnd").value;
-    let list = d.records;
-    if (s) list = list.filter(r => r.date >= s);
-    if (e) list = list.filter(r => r.date <= e);
-    const asc = list.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
-    $("detTrend").innerHTML = asc.length
-      ? `<h3 class="sub2">체중 추이</h3>` + lineChart(asc.map(r=>({label:r.date.slice(5), value:r.weight})), "var(--brand)")
-      : "";
-    const rows = list.map(r =>
-      `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
+    const s=$("detStart").value, e=$("detEnd").value;
+    let list=d.records;
+    if(s) list=list.filter(r=>r.date>=s);
+    if(e) list=list.filter(r=>r.date<=e);
+    const asc=list.slice().sort((a,b)=> a.date<b.date?-1:1);
+    $("detTrend").innerHTML=asc.length?`<h3 class="sub2">체중 추이</h3>`+lineChart(asc.map(r=>({label:r.date.slice(5),value:r.weight})),"var(--brand)"):"";
+    const body=monthRows(list,(r)=>
+      `<td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
       `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
-      `<td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
-      || `<tr><td colspan="7" class="muted-dash">해당 기간 기록 없음</td></tr>`;
-    $("detTable").innerHTML = `<p class="detail-meta" style="margin:6px 0 8px">${list.length}건</p>
-      <div class="tbl-scroll" style="max-height:300px;overflow:auto"><table>
-        <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>`;
+      `<td>${(r.warnings||[]).join(", ")||"—"}</td>`) || `<tr><td colspan="7" class="muted-dash">해당 기간 기록 없음</td></tr>`;
+    $("detTable").innerHTML=`<p class="detail-meta" style="margin:6px 0 8px">${list.length}건</p>
+      <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
+      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead><tbody>${body}</tbody></table></div>`;
   }
   attachDatePicker($("detStart")); attachDatePicker($("detEnd"));
-  $("detStart").addEventListener("change", renderPeriod);
-  $("detEnd").addEventListener("change", renderPeriod);
-  $("detReset").onclick = () => { $("detStart").value = ""; $("detEnd").value = ""; renderPeriod(); };
+  $("detStart").addEventListener("change",renderPeriod); $("detEnd").addEventListener("change",renderPeriod);
+  $("detReset").onclick=()=>{ $("detStart").value=""; $("detEnd").value=""; renderPeriod(); };
   renderPeriod();
-
-  if (myRole === "superadmin" && d.is_active){
-    $("wdBtn").onclick = () => deleteUser(d.id, d.username);
-  }
+  if(myRole==="superadmin"&&d.status!=="withdrawn") $("wdBtn").onclick=()=>withdrawUser(d.id,d.username);
   $("userModal").classList.remove("hidden");
 }
-
-async function deleteUser(id, name){
-  if (!confirm(`'${name}' 회원을 탈퇴 처리할까요? (DB에서 지우지 않고 탈퇴로 표시, 기록 보존)`)) return;
-  const res = await fetch(`/admin/users/${id}`, {method:"DELETE", headers:authHead()});
-  if (!res.ok){ const e = await res.json(); alert(e.detail || "탈퇴 처리 실패"); return; }
+async function withdrawUser(id,name){
+  if(!confirm(`'${name}' 회원을 탈퇴 처리할까요? (DB 보존, 탈퇴 표시)`)) return;
+  const res=await fetch(`/admin/users/${id}`,{method:"DELETE",headers:authHead()});
+  if(!res.ok){ const e=await res.json(); alert(e.detail||"실패"); return; }
   closeModal(); loadBoard();
 }
 
-// ----- 커스텀 달력 (yyyy-mm-dd 표시 + 클릭 선택) -----
+/* ---------- 모달 ---------- */
+function closeModal(){ $("userModal").classList.add("hidden"); }
+$("modalClose").onclick=closeModal;
+$("userModal").onclick=(e)=>{ if(e.target===$("userModal")) closeModal(); };
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
+
+/* ---------- 커스텀 달력 ---------- */
 function attachDatePicker(input){
-  if (!input || input.dataset.dp) return; input.dataset.dp = "1";
-  input.readOnly = true; input.autocomplete = "off";
-  let pop = null, view = null;
-  const pad = (x) => String(x).padStart(2, "0");
-  const fmt = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
-  function close(){ if (pop){ pop.remove(); pop=null; document.removeEventListener("mousedown", outside, true); window.removeEventListener("scroll", close, true);} }
-  function outside(e){ if (pop && !pop.contains(e.target) && e.target !== input) close(); }
-  function render(){
-    const y=view.getFullYear(), m=view.getMonth();
-    const startDow=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), sel=input.value;
-    let cells=""; for (let i=0;i<startDow;i++) cells+="<span></span>";
-    for (let d=1;d<=days;d++){ const ds=fmt(y,m,d); cells+=`<button type="button" class="dp-day${ds===sel?" sel":""}" data-d="${ds}">${d}</button>`; }
+  if(!input||input.dataset.dp) return; input.dataset.dp="1"; input.readOnly=true; input.autocomplete="off";
+  let pop=null,view=null; const pad=(x)=>String(x).padStart(2,"0"); const fmt=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  function close(){ if(pop){ pop.remove(); pop=null; document.removeEventListener("mousedown",outside,true); window.removeEventListener("scroll",close,true);} }
+  function outside(e){ if(pop&&!pop.contains(e.target)&&e.target!==input) close(); }
+  function render(){ const y=view.getFullYear(),m=view.getMonth(); const sd=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),sel=input.value;
+    let cells=""; for(let i=0;i<sd;i++) cells+="<span></span>";
+    for(let d=1;d<=days;d++){ const ds=fmt(y,m,d); cells+=`<button type="button" class="dp-day${ds===sel?" sel":""}" data-d="${ds}">${d}</button>`; }
     pop.innerHTML=`<div class="dp-head"><button type="button" class="dp-nav" data-n="-1">‹</button><b>${y}. ${pad(m+1)}</b><button type="button" class="dp-nav" data-n="1">›</button></div>
       <div class="dp-dows"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
-      <div class="dp-grid">${cells}</div>
-      <button type="button" class="dp-clear">지우기</button>`;
+      <div class="dp-grid">${cells}</div><button type="button" class="dp-clear">지우기</button>`;
     pop.querySelectorAll(".dp-nav").forEach(b=>b.onclick=()=>{ view=new Date(y,m+Number(b.dataset.n),1); render(); });
     pop.querySelectorAll(".dp-day").forEach(b=>b.onclick=()=>{ input.value=b.dataset.d; input.dispatchEvent(new Event("change",{bubbles:true})); close(); });
     pop.querySelector(".dp-clear").onclick=()=>{ input.value=""; input.dispatchEvent(new Event("change",{bubbles:true})); close(); };
   }
-  function open(){
-    if (pop) return;
-    view = input.value ? new Date(input.value+"T00:00") : new Date();
+  function open(){ if(pop) return; view=input.value?new Date(input.value+"T00:00"):new Date();
     pop=document.createElement("div"); pop.className="dp-pop"; document.body.appendChild(pop);
-    const r=input.getBoundingClientRect();
-    pop.style.left=Math.max(8, Math.min(r.left, window.innerWidth-252))+"px";
-    pop.style.top=(r.bottom+4)+"px";
-    render();
-    setTimeout(()=>{ document.addEventListener("mousedown", outside, true); window.addEventListener("scroll", close, true); }, 0);
+    const r=input.getBoundingClientRect(); pop.style.left=Math.max(8,Math.min(r.left,window.innerWidth-252))+"px"; pop.style.top=(r.bottom+4)+"px";
+    render(); setTimeout(()=>{ document.addEventListener("mousedown",outside,true); window.addEventListener("scroll",close,true); },0);
   }
-  input.addEventListener("click", open);
-  input.addEventListener("focus", open);
+  input.addEventListener("click",open); input.addEventListener("focus",open);
 }
-attachDatePicker($("logStart"));
-attachDatePicker($("logEnd"));
+attachDatePicker($("logStart")); attachDatePicker($("logEnd"));
 
 checkAuth();
 </script>

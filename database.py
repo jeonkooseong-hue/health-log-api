@@ -25,7 +25,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)                    # 암호화된 비번
     role = Column(String, default="user", nullable=False)              # user / admin / superadmin
     created_at = Column(DateTime, default=datetime.now)                # 가입일시
-    is_active = Column(Integer, default=1, nullable=False)             # 1=활성, 0=탈퇴
+    status = Column(String, default="active", nullable=False)         # active(활성)/dormant(휴면)/withdrawn(탈퇴)
 
     # 이 사용자가 가진 기록들 (1:N)
     records = relationship("Record", back_populates="owner", cascade="all, delete-orphan")

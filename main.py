@@ -152,10 +152,10 @@ def read_root():
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.username == user.username).first()
     if exists:
-        if exists.is_active:
+        if exists.status == "active":
             raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
-        # 탈퇴 회원이 같은 아이디로 재가입 → 계정 복구 + 비밀번호 갱신 (기록 보존)
-        exists.is_active = 1
+        # 휴면/탈퇴 회원이 같은 아이디로 재가입 → 계정 복구 + 비밀번호 갱신 (기록 보존)
+        exists.status = "active"
         exists.hashed_password = hash_password(user.password)
         db.commit()
         db.refresh(exists)
@@ -180,7 +180,9 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if not user or not verify_password(form.password, user.hashed_password):
         log_action(db, "login_failed", username=form.username)
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀립니다")
-    if not user.is_active:
+    if user.status == "dormant":
+        raise HTTPException(status_code=403, detail="휴면 계정입니다. 관리자에게 문의하세요")
+    if user.status == "withdrawn":
         raise HTTPException(status_code=403, detail="탈퇴한 회원입니다")
     token = create_access_token(user.username)
     log_action(db, "login", user=user)
@@ -311,21 +313,37 @@ def weekly_report(current_user: User = Depends(get_current_user),
 
 # ===== 관리자 (admin 전용) =====
 
+def _health_level(r):
+    """최신 기록으로 현재 건강 상태 판정: 위험 / 주의 / 정상 / None."""
+    if r is None:
+        return None
+    if _warn_count(r) > 0:
+        return "위험"
+    if (r.bmi_category in ("저체중", "과체중")
+            or r.bp_category == "주의" or r.sugar_category == "공복혈당장애"):
+        return "주의"
+    return "정상"
+
+
 @app.get("/admin/users")
 def admin_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     users = db.query(User).all()
+    records = db.query(Record).all()
+    latest = _latest_per_user(records)
+    counts = {}
+    for r in records:
+        counts[r.user_id] = counts.get(r.user_id, 0) + 1
+    logins = {}
+    for l in db.query(ActivityLog).filter(ActivityLog.action == "login").order_by(ActivityLog.id.asc()).all():
+        logins[l.user_id] = l.created_at
     result = []
     for u in users:
-        record_count = db.query(Record).filter(Record.user_id == u.id).count()
-        last_login = db.query(ActivityLog).filter(
-            ActivityLog.user_id == u.id, ActivityLog.action == "login"
-        ).order_by(ActivityLog.id.desc()).first()
         result.append({
-            "id": u.id, "username": u.username, "role": u.role,
-            "is_active": u.is_active,
-            "record_count": record_count,
+            "id": u.id, "username": u.username, "role": u.role, "status": u.status,
+            "record_count": counts.get(u.id, 0),
+            "health": _health_level(latest.get(u.id)),
             "created_at": u.created_at.isoformat() if u.created_at else None,
-            "last_login": last_login.created_at.isoformat() if (last_login and last_login.created_at) else None,
+            "last_login": logins[u.id].isoformat() if logins.get(u.id) else None,
         })
     return {"count": len(result), "users": result}
 
@@ -351,7 +369,7 @@ def admin_user_detail(user_id: int,
         }
     return {
         "id": u.id, "username": u.username, "role": u.role,
-        "is_active": u.is_active,
+        "status": u.status,
         "created_at": u.created_at.isoformat() if u.created_at else None,
         "record_count": len(records),
         "stats": stats,
@@ -375,10 +393,35 @@ def admin_delete_user(user_id: int,
     if u.role == "superadmin" and db.query(User).filter(User.role == "superadmin").count() <= 1:
         raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 탈퇴 처리할 수 없습니다")
     # 소프트 삭제: DB에서 지우지 않고 탈퇴 표시 (기록은 보존)
-    u.is_active = 0
+    u.status = "withdrawn"
     db.commit()
     log_action(db, "withdraw_user", user=admin, detail=f"{u.username} 탈퇴 처리")
     return {"message": "탈퇴 처리됨", "id": user_id, "username": u.username}
+
+
+class StatusUpdate(BaseModel):
+    status: str  # active / dormant / withdrawn
+
+
+@app.put("/admin/users/{user_id}/status")
+def admin_set_status(user_id: int, body: StatusUpdate,
+                     admin: User = Depends(get_current_admin),
+                     db: Session = Depends(get_db)):
+    """계정 상태 변경: 활성/휴면/탈퇴 (권한 변경과 별개)."""
+    if body.status not in ("active", "dormant", "withdrawn"):
+        raise HTTPException(status_code=400, detail="status는 active/dormant/withdrawn 중 하나여야 합니다")
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    if target.id == admin.id and body.status != "active":
+        raise HTTPException(status_code=400, detail="자기 자신은 비활성화할 수 없습니다")
+    if target.role == "superadmin" and body.status != "active":
+        if db.query(User).filter(User.role == "superadmin", User.status == "active").count() <= 1:
+            raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 비활성화할 수 없습니다")
+    target.status = body.status
+    db.commit()
+    log_action(db, "change_status", user=admin, detail=f"user#{target.id} -> {body.status}")
+    return {"id": target.id, "username": target.username, "status": target.status}
 
 
 @app.get("/admin/logs")
@@ -417,7 +460,7 @@ def _latest_per_user(records):
 def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """회원 단위 건강 통계 + 월별 평균 추이 (활성 회원만)."""
     records = db.query(Record).all()
-    active_ids = {u.id for u in db.query(User).filter(User.is_active == 1).all()}
+    active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
     latest = [r for r in _latest_per_user(records).values() if r.user_id in active_ids]
 
     bmi_u = Counter(r.bmi_category for r in latest)
@@ -468,7 +511,7 @@ def admin_health_group(metric: str, category: str = "",
                        db: Session = Depends(get_db)):
     """특정 지표 카테고리(또는 경고)에 속한 회원(최신 기록 기준) + 그룹 월별 추이."""
     records = db.query(Record).all()
-    active_ids = {u.id for u in db.query(User).filter(User.is_active == 1).all()}
+    active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
     latest = {uid: r for uid, r in _latest_per_user(records).items() if uid in active_ids}
 
     if metric == "warning":

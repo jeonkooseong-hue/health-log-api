@@ -57,14 +57,25 @@ def main():
     pw_user = hash_password("user1234")
 
     start = TODAY - timedelta(days=DAYS - 1)  # 첫 기록일
-    joined = datetime.combine(start, datetime.min.time())
+    base = datetime.combine(start, datetime.min.time())
+
+    def rand_join():
+        return base + timedelta(days=random.randint(0, 20), hours=random.randint(6, 22),
+                                minutes=random.randint(0, 59), seconds=random.randint(0, 59))
 
     # 사용자 생성: 1명 슈퍼관리자(admin) + 3명 관리자 + 나머지 일반 (한국 이름)
     names = korean_names(NUM_USERS - 1)
-    users = [User(username="admin", hashed_password=pw_admin, role="superadmin", created_at=joined)]
+    users = [User(username="admin", hashed_password=pw_admin, role="superadmin",
+                  created_at=rand_join(), status="active")]
     for i in range(NUM_USERS - 1):
         role = "admin" if i < 3 else "user"
-        users.append(User(username=names[i], hashed_password=pw_user, role=role, created_at=joined))
+        if role == "user":
+            roll = random.random()
+            status = "withdrawn" if roll < 0.04 else ("dormant" if roll < 0.10 else "active")
+        else:
+            status = "active"
+        users.append(User(username=names[i], hashed_password=pw_user, role=role,
+                          created_at=rand_join(), status=status))
     db.add_all(users)
     db.commit()  # id 확보
 
