@@ -152,7 +152,15 @@ def read_root():
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.username == user.username).first()
     if exists:
-        raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
+        if exists.is_active:
+            raise HTTPException(status_code=400, detail="이미 존재하는 사용자입니다")
+        # 탈퇴 회원이 같은 아이디로 재가입 → 계정 복구 + 비밀번호 갱신 (기록 보존)
+        exists.is_active = 1
+        exists.hashed_password = hash_password(user.password)
+        db.commit()
+        db.refresh(exists)
+        log_action(db, "reactivate", user=exists, detail="재가입으로 계정 복구")
+        return {"id": exists.id, "username": exists.username, "role": exists.role, "reactivated": True}
     # 첫 번째 가입자는 자동으로 슈퍼관리자 (부트스트랩)
     is_first = db.query(User).count() == 0
     role = "superadmin" if is_first else "user"
