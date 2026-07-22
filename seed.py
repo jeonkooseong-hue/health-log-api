@@ -27,6 +27,22 @@ random.seed(42)
 MEMOS = ["", "", "", "", "컨디션 좋음", "조금 피곤함", "야식 먹음",
          "운동 완료", "숙면함", "스트레스 많음", "물 많이 마심", "과식"]
 
+# 메모(이벤트)가 그날 지표에 실제로 영향을 주도록 설계 (memo, d수축기, d이완기, d혈당, d체중)
+# 핵심 스토리: 운동 → 혈압 크게↓·혈당 조금↓ / 야식·과식 → 혈당 크게↑ / 음주 → 혈압·혈당↑ / 스트레스 → 혈압↑
+EVENTS = [
+    ("운동 완료", -11, -6, -4, -0.06),
+    ("숙면함", -4, -2, -2, 0.0),
+    ("물 많이 마심", -2, -1, -3, 0.0),
+    ("컨디션 좋음", -1, 0, -1, 0.0),
+    ("", 0, 0, 0, 0.0),
+    ("", 0, 0, 0, 0.0),
+    ("조금 피곤함", 2, 1, 1, 0.0),
+    ("스트레스 많음", 10, 6, 4, 0.0),
+    ("야식 먹음", 2, 1, 17, 0.18),
+    ("과식", 3, 2, 14, 0.22),
+    ("음주", 12, 7, 11, 0.06),
+]
+
 SURNAMES = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임",
             "한", "오", "서", "신", "권", "황", "안", "송", "류", "홍"]
 GIVEN = ["민준", "서연", "도윤", "하은", "지호", "서준", "하윤", "예준", "지우", "수아",
@@ -84,24 +100,36 @@ def main():
                             detail=f"role={u.role}", created_at=u.created_at) for u in users])
     db.commit()
 
-    # 일일 건강 기록
+    # 일일 건강 기록 (메모 이벤트가 지표에 인과적으로 영향)
     records = []
     for u in users:
         height = float(random.randint(150, 188))
         target_bmi = random.uniform(18.0, 32.0)
         base = round(target_bmi * (height / 100) ** 2, 1)   # 시작 체중
-        slope = random.uniform(-0.08, 0.03)                 # 하루당 추세(kg) - 완만한 감량 편향
-        amp = random.uniform(1.5, 3.5)                      # 계절성 진폭
+        slope = random.uniform(-0.08, 0.03)
+        amp = random.uniform(1.5, 3.5)
         sys_base = random.randint(105, 150)
         dia_base = random.randint(68, 95)
         sugar_base = random.randint(85, 135)
+        # 개인 성향(페르소나): 운동파/야식파 등 → 이벤트 확률에 반영
+        w_ex = random.uniform(0.6, 2.6)
+        w_eat = random.uniform(0.6, 2.6)
+        weights = []
+        for (memo, ds, dd, dg, dw) in EVENTS:
+            if memo == "운동 완료": weights.append(2.0 * w_ex)
+            elif memo in ("야식 먹음", "과식"): weights.append(1.2 * w_eat)
+            elif memo == "음주": weights.append(0.8)
+            elif memo == "스트레스 많음": weights.append(0.9)
+            elif memo == "": weights.append(2.4)
+            else: weights.append(1.0)
         for k in range(DAYS):
             d = start + timedelta(days=k)
-            seasonal = amp * math.sin(math.pi * k / DAYS)   # 기간 중간이 볼록한 곡선
-            weight = round(base + slope * k + seasonal + random.uniform(-0.4, 0.4), 1)
-            systolic = max(90, min(180, sys_base + random.randint(-8, 8)))
-            diastolic = max(55, min(120, dia_base + random.randint(-6, 6)))
-            blood_sugar = max(70, min(220, sugar_base + random.randint(-10, 12)))
+            memo, ds, dd, dg, dw = random.choices(EVENTS, weights=weights, k=1)[0]
+            seasonal = amp * math.sin(math.pi * k / DAYS)
+            weight = round(base + slope * k + seasonal + dw + random.uniform(-0.3, 0.3), 1)
+            systolic = max(90, min(180, sys_base + ds + random.randint(-5, 5)))
+            diastolic = max(55, min(120, dia_base + dd + random.randint(-4, 4)))
+            blood_sugar = max(70, min(220, sugar_base + dg + random.randint(-8, 8)))
             bmi = calc_bmi(weight, height)
             bmi_cat = classify_bmi(bmi)
             bp_cat = classify_bp(systolic, diastolic)
@@ -111,7 +139,7 @@ def main():
                 user_id=u.id, date=d.isoformat(), weight=weight, height=height,
                 systolic=systolic, diastolic=diastolic, blood_sugar=blood_sugar,
                 steps=random.randint(2000, 15000), sleep_hours=round(random.uniform(4.5, 9.0), 1),
-                memo=random.choice(MEMOS),
+                memo=memo,
                 bmi=bmi, bmi_category=bmi_cat, bp_category=bp_cat, sugar_category=sugar_cat,
                 warnings=json.dumps(warns, ensure_ascii=False),
             ))

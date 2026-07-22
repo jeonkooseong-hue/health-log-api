@@ -8,3 +8,5 @@ health.db
 .gitignore
 .dockerignore
 README.md
+analysis/
+requirements-ml.txt
