@@ -498,6 +498,91 @@ def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = D
     }
 
 
+# ===== 메모 → 이벤트 태깅 + 인과 인사이트 =====
+
+EVENT_KEYWORDS = [
+    ("운동", ["조깅", "웨이트", "산책", "자전거", "홈트", "수영", "등산", "러닝", "요가", "계단", "운동"]),
+    ("야식·과식", ["야식", "치킨", "라면", "과자", "간식", "빵", "떡볶이", "과식", "폭식", "많이 먹", "배부르", "식사량"]),
+    ("음주", ["음주", "맥주", "소주", "술자리", "와인", "과음", "회식"]),
+    ("스트레스", ["스트레스", "예민", "짜증", "긴장", "기분이 안"]),
+    ("수면", ["숙면", "푹 잤", "일찍 자", "잘 자"]),
+    ("피로", ["피곤", "피로", "수면이 부족", "몸이 무거"]),
+    ("수분", ["물 2리터", "수분", "물 자주", "물 많이"]),
+]
+
+
+def tag_event(memo: str):
+    """메모 자연어 → 이벤트 분류 (키워드 규칙)."""
+    if not memo:
+        return None
+    for name, kws in EVENT_KEYWORDS:
+        for k in kws:
+            if k in memo:
+                return name
+    return None
+
+
+@app.get("/admin/users/{user_id}/insights")
+def admin_user_insights(user_id: int,
+                        admin: User = Depends(get_current_admin),
+                        db: Session = Depends(get_db)):
+    """이 회원의 '어떤 행동이 어떤 지표를 얼마나 움직이는가' 분석 + 서사."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    recs = db.query(Record).filter(Record.user_id == user_id).all()
+    if len(recs) < 10:
+        return {"user_id": user_id, "username": u.username, "events": [], "narrative": ["분석할 기록이 부족합니다."]}
+
+    sys_vals = sorted(r.systolic for r in recs)
+    sug_vals = sorted(r.blood_sugar for r in recs)
+    mid = len(recs) // 2
+    sys_med, sug_med = sys_vals[mid], sug_vals[mid]
+
+    agg = {}
+    for r in recs:
+        ev = tag_event(r.memo)
+        if ev is None:
+            continue
+        a = agg.setdefault(ev, {"n": 0, "sys": 0.0, "sug": 0.0})
+        a["n"] += 1
+        a["sys"] += r.systolic - sys_med
+        a["sug"] += r.blood_sugar - sug_med
+
+    events = [{
+        "event": ev, "n": a["n"],
+        "sys_delta": round(a["sys"] / a["n"], 1),
+        "sugar_delta": round(a["sug"] / a["n"], 1),
+    } for ev, a in agg.items() if a["n"] >= 5]
+    events.sort(key=lambda e: -abs(e["sugar_delta"]) - abs(e["sys_delta"]))
+
+    # 서사 생성
+    narrative = []
+    if events:
+        bp_best = min(events, key=lambda e: e["sys_delta"])
+        bp_worst = max(events, key=lambda e: e["sys_delta"])
+        sg_worst = max(events, key=lambda e: e["sugar_delta"])
+        if bp_best["sys_delta"] <= -3:
+            narrative.append(f"‘{bp_best['event']}’ 한 날 혈압이 평소보다 {abs(bp_best['sys_delta'])} 낮음 — 혈압 개선에 효과적입니다.")
+        if bp_worst["sys_delta"] >= 4:
+            narrative.append(f"‘{bp_worst['event']}’ 한 날 혈압이 평소보다 {bp_worst['sys_delta']} 높음 — 혈압 상승 요인입니다.")
+        if sg_worst["sugar_delta"] >= 5:
+            narrative.append(f"혈당 상승 주원인은 ‘{sg_worst['event']}’ (평소 대비 +{sg_worst['sugar_delta']}).")
+        # 핵심: 운동은 듣는데 혈당이 안 잡히는 이유
+        if (bp_best["sys_delta"] <= -3 and sg_worst["sugar_delta"] >= 5
+                and bp_best["sugar_delta"] > -sg_worst["sugar_delta"] * 0.6):
+            narrative.append(
+                f"‘{bp_best['event']}’의 혈당 개선폭({bp_best['sugar_delta']})이 "
+                f"‘{sg_worst['event']}’의 상승폭(+{sg_worst['sugar_delta']})을 상쇄하지 못합니다. "
+                f"혈압은 잡히지만 혈당이 잡히지 않는 이유 → 식습관 개입이 필요합니다.")
+    if not narrative:
+        narrative.append("뚜렷한 행동–지표 연관이 관찰되지 않았습니다.")
+
+    return {"user_id": user_id, "username": u.username,
+            "baseline": {"systolic": sys_med, "blood_sugar": sug_med},
+            "events": events, "narrative": narrative}
+
+
 def _warn_count(r):
     try:
         return len(json.loads(r.warnings)) if r.warnings else 0

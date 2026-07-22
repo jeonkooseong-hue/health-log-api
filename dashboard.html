@@ -120,6 +120,8 @@
   .vit-val span{font-family:var(--sans);font-size:11px;color:var(--muted);margin-left:2px}
   .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
   .btn-del-user:hover{background:var(--bad-bg)}
+  .ins-narr{background:var(--field);border-left:3px solid var(--brand);border-radius:0 10px 10px 0;padding:12px 14px}
+  .ins-line{font-size:13px;line-height:1.7}
   .row-click{cursor:pointer}
   .row-click:hover{background:var(--field)}
 
@@ -498,9 +500,24 @@ async function openGroupDetail(metric,category){
 
 /* ---------- 회원 상세 (기간 필터 + 월 구분자) ---------- */
 async function loadUserDetail(id){
-  const res=await fetch(`/admin/users/${id}`,{headers:authHead()});
+  const [res, insRes]=await Promise.all([
+    fetch(`/admin/users/${id}`,{headers:authHead()}),
+    fetch(`/admin/users/${id}/insights`,{headers:authHead()}),
+  ]);
   if(!res.ok){ alert("회원 정보를 불러오지 못했어요."); return; }
   const d=await res.json();
+  const ins=insRes.ok?await insRes.json():{narrative:[],events:[]};
+  const dcol=(v)=>v>2?"var(--bad)":(v<-2?"var(--ok)":"var(--muted)");
+  const sgn=(v)=>(v>0?"+":"")+v;
+  const insHtml=`
+    <h3 class="sub2">행동–지표 인사이트 (무엇이 이 환자의 수치를 움직이는가)</h3>
+    <div class="ins-narr">${(ins.narrative||[]).map(n=>`<div class="ins-line">• ${n}</div>`).join("")}</div>
+    ${(ins.events||[]).length?`<div class="tbl-scroll" style="margin-top:10px"><table>
+      <thead><tr><th>행동</th><th>일수</th><th>혈압 변화</th><th>혈당 변화</th></tr></thead>
+      <tbody>${ins.events.map(e=>`<tr><td>${e.event}</td><td class="num">${e.n}</td>`+
+        `<td class="num" style="color:${dcol(e.sys_delta)};font-weight:600">${sgn(e.sys_delta)}</td>`+
+        `<td class="num" style="color:${dcol(e.sugar_delta)};font-weight:600">${sgn(e.sugar_delta)}</td></tr>`).join("")}
+      </tbody></table></div>`:""}`;
   const latest=d.records[0];
   const vitals=latest?`<div class="vitals">
       <div class="vit"><div class="vit-label">체중</div><div class="vit-val">${latest.weight}<span>kg</span></div></div>
@@ -516,6 +533,7 @@ async function loadUserDetail(id){
     <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${stChip}</div>
     <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
     <h3 class="sub2">최근 측정</h3>${vitals}
+    ${insHtml}
     <h3 class="sub2">기간별 기록</h3>
     <div class="toolbar"><input class="filter-sel" id="detStart" placeholder="시작일" readonly><input class="filter-sel" id="detEnd" placeholder="종료일" readonly><button class="btn" id="detReset">전체</button></div>
     <div id="detTrend"></div><div id="detTable"></div>${actionBtn}`;
