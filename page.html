@@ -96,6 +96,14 @@
   .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
   .modal-close:hover{color:var(--ink)}
   .modal-title{font-size:16px;margin:0 0 14px}
+  .detail-actions{display:flex;gap:8px;margin-top:18px;align-items:center}
+  .detail-actions .btn-del{margin-top:0}
+  .btn-edit{background:none;border:1px solid var(--brand);color:var(--brand);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-edit:hover{background:var(--brand-soft)}
+  .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .edit-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  .edit-grid input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14px}
+  .edit-grid .ef-full{grid-column:1/-1}
   table.hist{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
   table.hist th,table.hist td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
   table.hist th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
@@ -429,9 +437,44 @@ function selectDay(id){
         <button class="btn-memo" id="memoSave">저장</button>
       </div>
     </div>
-    <button class="btn-del" data-id="${r.id}">이 기록 삭제</button>`;
+    <div class="detail-actions">
+      <button class="btn-edit" id="editBtn">기록 값 수정</button>
+      <button class="btn-del" data-id="${r.id}">이 기록 삭제</button>
+    </div>`;
   $("dayDetail").querySelector(".btn-del").onclick = () => delRecord(r.id);
+  $("editBtn").onclick = () => openEdit(r);
   $("memoSave").onclick = () => saveMemo(r);
+}
+
+function openEdit(r){
+  const esc = (s) => (s || "").replace(/"/g, "&quot;");
+  $("modalBody").innerHTML = `<h3 class="modal-title">${r.date} 기록 값 수정</h3>
+    <form id="editForm" class="edit-grid">
+      <label><span>체중 (kg)</span><input name="weight" type="number" step="0.1" value="${r.weight}" required></label>
+      <label><span>키 (cm)</span><input name="height" type="number" step="0.1" value="${r.height}" required></label>
+      <label><span>수축기 혈압</span><input name="systolic" type="number" value="${r.systolic}" required></label>
+      <label><span>이완기 혈압</span><input name="diastolic" type="number" value="${r.diastolic}" required></label>
+      <label><span>공복 혈당</span><input name="blood_sugar" type="number" value="${r.blood_sugar}" required></label>
+      <label><span>걸음 수</span><input name="steps" type="number" value="${r.steps}"></label>
+      <label><span>수면 (h)</span><input name="sleep_hours" type="number" step="0.1" value="${r.sleep_hours}"></label>
+      <label class="ef-full"><span>메모</span><input name="memo" value="${esc(r.memo)}"></label>
+      <button class="primary ef-full" type="submit">저장</button>
+    </form>`;
+  $("editForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const body = {
+      date:r.date, weight:parseFloat(f.get("weight")), height:parseFloat(f.get("height")),
+      systolic:parseInt(f.get("systolic")), diastolic:parseInt(f.get("diastolic")),
+      blood_sugar:parseInt(f.get("blood_sugar")), steps:parseInt(f.get("steps"))||0,
+      sleep_hours:parseFloat(f.get("sleep_hours"))||0, memo:f.get("memo")||"",
+    };
+    const res = await fetch("/records/" + r.id, {method:"PUT",
+      headers:{"Content-Type":"application/json", ...authHead()}, body:JSON.stringify(body)});
+    if (res.status === 401){ showAuth(); return; }
+    closeUiModal(); loadAll();
+  };
+  $("uiModal").classList.remove("hidden");
 }
 
 async function saveMemo(r){

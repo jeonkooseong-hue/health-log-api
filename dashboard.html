@@ -64,6 +64,8 @@
   .bar-click{cursor:pointer;background:none;border:none;font:inherit;text-align:left;padding:6px;border-radius:8px;width:100%}
   .bar-click:hover{background:var(--field)}
   .chart-title{font-size:12px;color:var(--muted)}
+  .row-click{cursor:pointer}
+  .row-click:hover{background:var(--field)}
   .kpi .k-unit{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:2px}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -336,17 +338,19 @@ async function openGroupDetail(metric, category){
   const d = await res.json();
   const mname = {bmi:"BMI", bp:"수축기 혈압", sugar:"공복 혈당"}[metric];
   const chart = lineChart(d.monthly.map(m=>({label:m.month.slice(5), value:m.avg})), "var(--brand)");
-  const rows = d.users.slice(0,50).map(u =>
-    `<tr><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
+  const rows = d.users.map(u =>
+    `<tr class="row-click" data-id="${u.id}"><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
     || `<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
   $("userDetailBody").innerHTML = `
     <div class="detail-head2"><span class="detail-name">${category}</span><span class="role-badge">${d.user_count}명</span></div>
-    <p class="detail-meta">최신 기록이 '${category}'인 회원 · ${mname} 기준</p>
+    <p class="detail-meta">최신 기록이 '${category}'인 회원 · ${mname} 기준 · 이름 클릭 시 상세</p>
     <h3 class="sub2">이 그룹의 월별 평균 ${mname}</h3>${chart}
-    <h3 class="sub2">회원 목록 (${mname} 높은 순, 최대 50명)</h3>
-    <div class="tbl-scroll"><table>
+    <h3 class="sub2">회원 목록 (${mname} 높은 순, ${d.user_count}명)</h3>
+    <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
       <thead><tr><th>이름</th><th>${mname}</th><th>측정일</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
+  $("userDetailBody").querySelectorAll(".row-click").forEach(tr =>
+    tr.onclick = () => loadUserDetail(parseInt(tr.dataset.id)));
   $("userModal").classList.remove("hidden");
 }
 
@@ -489,6 +493,8 @@ async function loadUserDetail(id){
       <div class="vit"><div class="vit-label">혈당</div><div class="vit-val">${latest.blood_sugar}<span>mg/dL</span></div></div>
     </div>` : `<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
   const avg = d.stats ? `평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}` : "기록 없음";
+  const asc = d.records.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+  const trend = asc.length ? lineChart(asc.map(r=>({label:r.date.slice(5), value:r.weight})), "var(--brand)") : "";
   const rows = d.records.map(r =>
     `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
     `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
@@ -499,8 +505,9 @@ async function loadUserDetail(id){
     <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span></div>
     <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
     <h3 class="sub2">최근 측정</h3>${vitals}
-    <h3 class="sub2">기록 이력 (최근 10일)</h3>
-    <div class="tbl-scroll"><table>
+    ${trend ? `<h3 class="sub2">체중 추이 (전체)</h3>${trend}` : ""}
+    <h3 class="sub2">전체 기록 (${d.record_count}건)</h3>
+    <div class="tbl-scroll" style="max-height:340px;overflow:auto"><table>
       <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${delBtn}`;

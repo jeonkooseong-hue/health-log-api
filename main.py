@@ -343,7 +343,7 @@ def admin_user_detail(user_id: int,
         "created_at": u.created_at.isoformat() if u.created_at else None,
         "record_count": len(records),
         "stats": stats,
-        "records": [record_to_dict(r) for r in records[:10]],
+        "records": [record_to_dict(r) for r in records],   # 전체 기록 (최신순)
         "recent_logs": [{
             "action": l.action, "detail": l.detail,
             "created_at": l.created_at.isoformat() if l.created_at else None,

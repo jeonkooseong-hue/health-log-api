@@ -11,6 +11,7 @@
 """
 import sys
 import json
+import math
 import random
 from datetime import date, timedelta, datetime
 
@@ -77,13 +78,16 @@ def main():
     for u in users:
         height = float(random.randint(150, 188))
         target_bmi = random.uniform(18.0, 32.0)
-        weight = round(target_bmi * (height / 100) ** 2, 1)   # BMI 기준 현실적 체중
+        base = round(target_bmi * (height / 100) ** 2, 1)   # 시작 체중
+        slope = random.uniform(-0.08, 0.03)                 # 하루당 추세(kg) - 완만한 감량 편향
+        amp = random.uniform(1.5, 3.5)                      # 계절성 진폭
         sys_base = random.randint(105, 150)
         dia_base = random.randint(68, 95)
         sugar_base = random.randint(85, 135)
         for k in range(DAYS):
             d = start + timedelta(days=k)
-            weight = round(weight + random.uniform(-0.3, 0.3), 1)   # 완만한 변동
+            seasonal = amp * math.sin(math.pi * k / DAYS)   # 기간 중간이 볼록한 곡선
+            weight = round(base + slope * k + seasonal + random.uniform(-0.4, 0.4), 1)
             systolic = max(90, min(180, sys_base + random.randint(-8, 8)))
             diastolic = max(55, min(120, dia_base + random.randint(-6, 6)))
             blood_sugar = max(70, min(220, sugar_base + random.randint(-10, 12)))
