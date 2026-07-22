@@ -69,6 +69,20 @@
   .chart-title{font-size:12px;color:var(--muted)}
   .row-click{cursor:pointer}
   .row-click:hover{background:var(--field)}
+  .dp-pop{position:fixed;z-index:200;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:10px;width:236px}
+  .dp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .dp-head b{font-size:13px}
+  .dp-nav{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:2px 9px;border-radius:6px}
+  .dp-nav:hover{background:var(--field);color:var(--ink)}
+  .dp-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px}
+  .dp-dows span{text-align:center;font-size:10px;color:var(--muted)}
+  .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .dp-grid span{height:30px}
+  .dp-day{height:30px;border:none;background:none;border-radius:7px;font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit;font-variant-numeric:tabular-nums}
+  .dp-day:hover{background:var(--field)}
+  .dp-day.sel{background:var(--brand);color:#fff}
+  .dp-clear{width:100%;margin-top:8px;background:none;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}
+  .dp-clear:hover{color:var(--ink)}
   .kpi .k-unit{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:2px}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -200,8 +214,8 @@
         <h2>활동 로그</h2>
         <div class="toolbar">
           <select class="filter-sel" id="logAction"><option value="">모든 동작</option></select>
-          <input type="date" class="filter-sel" id="logStart" title="시작일">
-          <input type="date" class="filter-sel" id="logEnd" title="종료일">
+          <input type="text" class="filter-sel" id="logStart" placeholder="시작일 클릭" readonly>
+          <input type="text" class="filter-sel" id="logEnd" placeholder="종료일 클릭" readonly>
           <input class="search" id="logSearch" placeholder="사용자·상세 검색…" autocomplete="off">
         </div>
         <div class="tbl-scroll">
@@ -306,7 +320,7 @@ function bars(container, items){
 function lineChart(series, color){
   const clean = series.filter(s => s.value != null);
   if (!clean.length) return `<div class="muted-dash">데이터 없음</div>`;
-  const W=560,H=170,pl=40,pr=14,pt=16,pb=26, n=clean.length;
+  const W=560,H=180,pl=42,pr=14,pt=16,pb=26, n=clean.length;
   const vals=clean.map(s=>s.value);
   let mn=Math.min(...vals), mx=Math.max(...vals);
   if (mn===mx){ mn-=1; mx+=1; }
@@ -315,12 +329,16 @@ function lineChart(series, color){
   const Y=v=> pt + ih*(1-(v-mn)/(mx-mn));
   const pts=clean.map((s,i)=>`${X(i).toFixed(1)},${Y(s.value).toFixed(1)}`).join(" ");
   const area=`${pl},${(pt+ih).toFixed(1)} ${pts} ${X(n-1).toFixed(1)},${(pt+ih).toFixed(1)}`;
-  const dots=clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="3" fill="${color}"/>`).join("");
-  const vlab=clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${(Y(s.value)-8).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--ink)">${s.value}</text>`).join("");
-  const xlab=clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>`).join("");
+  const few = n <= 14;   // 점 적을 때만 점/값라벨 표시
+  const dots = few ? clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="3" fill="${color}"/>`).join("") : "";
+  const vlab = few ? clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${(Y(s.value)-8).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--ink)">${s.value}</text>`).join("") : "";
+  const step = Math.max(1, Math.ceil(n/8));   // x라벨 최대 ~8개
+  const xlab = clean.map((s,i)=> (i%step===0||i===n-1) ? `<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>` : "").join("");
+  const ylab = `<text x="6" y="${(Y(mx)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mx}</text>`+
+               `<text x="6" y="${(Y(mn)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mn}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">
     <polygon points="${area}" fill="${color}" opacity="0.08"/>
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}</svg>`;
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}${ylab}</svg>`;
 }
 
 function distBars(container, obj, order, metric){
@@ -528,6 +546,44 @@ async function deleteUser(id, name){
   if (!res.ok){ const e = await res.json(); alert(e.detail || "삭제 실패"); return; }
   closeModal(); loadBoard();
 }
+
+// ----- 커스텀 달력 (yyyy-mm-dd 표시 + 클릭 선택) -----
+function attachDatePicker(input){
+  if (!input || input.dataset.dp) return; input.dataset.dp = "1";
+  input.readOnly = true; input.autocomplete = "off";
+  let pop = null, view = null;
+  const pad = (x) => String(x).padStart(2, "0");
+  const fmt = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
+  function close(){ if (pop){ pop.remove(); pop=null; document.removeEventListener("mousedown", outside, true); window.removeEventListener("scroll", close, true);} }
+  function outside(e){ if (pop && !pop.contains(e.target) && e.target !== input) close(); }
+  function render(){
+    const y=view.getFullYear(), m=view.getMonth();
+    const startDow=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), sel=input.value;
+    let cells=""; for (let i=0;i<startDow;i++) cells+="<span></span>";
+    for (let d=1;d<=days;d++){ const ds=fmt(y,m,d); cells+=`<button type="button" class="dp-day${ds===sel?" sel":""}" data-d="${ds}">${d}</button>`; }
+    pop.innerHTML=`<div class="dp-head"><button type="button" class="dp-nav" data-n="-1">‹</button><b>${y}. ${pad(m+1)}</b><button type="button" class="dp-nav" data-n="1">›</button></div>
+      <div class="dp-dows"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="dp-grid">${cells}</div>
+      <button type="button" class="dp-clear">지우기</button>`;
+    pop.querySelectorAll(".dp-nav").forEach(b=>b.onclick=()=>{ view=new Date(y,m+Number(b.dataset.n),1); render(); });
+    pop.querySelectorAll(".dp-day").forEach(b=>b.onclick=()=>{ input.value=b.dataset.d; input.dispatchEvent(new Event("change",{bubbles:true})); close(); });
+    pop.querySelector(".dp-clear").onclick=()=>{ input.value=""; input.dispatchEvent(new Event("change",{bubbles:true})); close(); };
+  }
+  function open(){
+    if (pop) return;
+    view = input.value ? new Date(input.value+"T00:00") : new Date();
+    pop=document.createElement("div"); pop.className="dp-pop"; document.body.appendChild(pop);
+    const r=input.getBoundingClientRect();
+    pop.style.left=Math.max(8, Math.min(r.left, window.innerWidth-252))+"px";
+    pop.style.top=(r.bottom+4)+"px";
+    render();
+    setTimeout(()=>{ document.addEventListener("mousedown", outside, true); window.addEventListener("scroll", close, true); }, 0);
+  }
+  input.addEventListener("click", open);
+  input.addEventListener("focus", open);
+}
+attachDatePicker($("logStart"));
+attachDatePicker($("logEnd"));
 
 checkAuth();
 </script>

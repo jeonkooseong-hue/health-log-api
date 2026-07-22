@@ -104,6 +104,18 @@
   .edit-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
   .edit-grid input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14px}
   .edit-grid .ef-full{grid-column:1/-1}
+  .dp-pop{position:fixed;z-index:200;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:10px;width:236px}
+  .dp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .dp-head b{font-size:13px}
+  .dp-nav{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:2px 9px;border-radius:6px}
+  .dp-nav:hover{background:var(--field);color:var(--ink)}
+  .dp-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px}
+  .dp-dows span{text-align:center;font-size:10px;color:var(--muted)}
+  .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .dp-grid span{height:30px}
+  .dp-day{height:30px;border:none;background:none;border-radius:7px;font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit;font-variant-numeric:tabular-nums}
+  .dp-day:hover{background:var(--field)}
+  .dp-day.sel{background:var(--brand);color:#fff}
   table.hist{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
   table.hist th,table.hist td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
   table.hist th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
@@ -230,7 +242,7 @@
       <h2>새 기록</h2>
       <form id="recForm">
         <div class="grid">
-          <label class="full"><span>날짜</span><input name="date" type="date" required></label>
+          <label class="full"><span>날짜</span><input name="date" type="text" placeholder="날짜 선택" readonly required></label>
           <label><span>몸무게 (kg)</span><input name="weight" type="number" step="0.1" required></label>
           <label><span>키 (cm)</span><input name="height" type="number" step="0.1" required></label>
           <label><span>수축기 혈압</span><input name="systolic" type="number" required></label>
@@ -571,8 +583,47 @@ $("uiModalClose").onclick = closeUiModal;
 $("uiModal").onclick = (e) => { if (e.target === $("uiModal")) closeUiModal(); };
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeUiModal(); });
 
-// 새 기록 날짜 기본값 = 오늘
-(function(){ const el = document.querySelector('[name=date]'); if (el) el.value = new Date().toISOString().slice(0,10); })();
+// ----- 커스텀 달력 (yyyy-mm-dd 표시 + 클릭 선택) -----
+function attachDatePicker(input){
+  if (!input || input.dataset.dp) return; input.dataset.dp = "1";
+  input.readOnly = true; input.autocomplete = "off";
+  let pop = null, view = null;
+  const pad = (x) => String(x).padStart(2, "0");
+  const fmt = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
+  function close(){ if (pop){ pop.remove(); pop=null; document.removeEventListener("mousedown", outside, true); window.removeEventListener("scroll", close, true);} }
+  function outside(e){ if (pop && !pop.contains(e.target) && e.target !== input) close(); }
+  function render(){
+    const y=view.getFullYear(), m=view.getMonth();
+    const startDow=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), sel=input.value;
+    let cells=""; for (let i=0;i<startDow;i++) cells+="<span></span>";
+    for (let d=1;d<=days;d++){ const ds=fmt(y,m,d); cells+=`<button type="button" class="dp-day${ds===sel?" sel":""}" data-d="${ds}">${d}</button>`; }
+    pop.innerHTML=`<div class="dp-head"><button type="button" class="dp-nav" data-n="-1">‹</button><b>${y}. ${pad(m+1)}</b><button type="button" class="dp-nav" data-n="1">›</button></div>
+      <div class="dp-dows"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="dp-grid">${cells}</div>`;
+    pop.querySelectorAll(".dp-nav").forEach(b=>b.onclick=()=>{ view=new Date(y,m+Number(b.dataset.n),1); render(); });
+    pop.querySelectorAll(".dp-day").forEach(b=>b.onclick=()=>{ input.value=b.dataset.d; input.dispatchEvent(new Event("change",{bubbles:true})); close(); });
+  }
+  function open(){
+    if (pop) return;
+    view = input.value ? new Date(input.value+"T00:00") : new Date();
+    pop=document.createElement("div"); pop.className="dp-pop"; document.body.appendChild(pop);
+    const r=input.getBoundingClientRect();
+    pop.style.left=Math.max(8, Math.min(r.left, window.innerWidth-252))+"px";
+    pop.style.top=(r.bottom+4)+"px";
+    render();
+    setTimeout(()=>{ document.addEventListener("mousedown", outside, true); window.addEventListener("scroll", close, true); }, 0);
+  }
+  input.addEventListener("click", open);
+  input.addEventListener("focus", open);
+}
+
+// 새 기록 날짜: 커스텀 달력 + 오늘 기본값
+(function(){
+  const el = document.querySelector('[name=date]');
+  if (!el) return;
+  el.value = new Date().toISOString().slice(0,10);
+  attachDatePicker(el);
+})();
 
 // 시작
 if (token()) showApp(localStorage.getItem("name") || ""); else showAuth();
