@@ -172,6 +172,8 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if not user or not verify_password(form.password, user.hashed_password):
         log_action(db, "login_failed", username=form.username)
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀립니다")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="탈퇴한 회원입니다")
     token = create_access_token(user.username)
     log_action(db, "login", user=user)
     return {"access_token": token, "token_type": "bearer"}
@@ -312,6 +314,7 @@ def admin_users(admin: User = Depends(get_current_admin), db: Session = Depends(
         ).order_by(ActivityLog.id.desc()).first()
         result.append({
             "id": u.id, "username": u.username, "role": u.role,
+            "is_active": u.is_active,
             "record_count": record_count,
             "created_at": u.created_at.isoformat() if u.created_at else None,
             "last_login": last_login.created_at.isoformat() if (last_login and last_login.created_at) else None,
@@ -340,6 +343,7 @@ def admin_user_detail(user_id: int,
         }
     return {
         "id": u.id, "username": u.username, "role": u.role,
+        "is_active": u.is_active,
         "created_at": u.created_at.isoformat() if u.created_at else None,
         "record_count": len(records),
         "stats": stats,
@@ -361,12 +365,12 @@ def admin_delete_user(user_id: int,
     if u.id == admin.id:
         raise HTTPException(status_code=400, detail="자기 자신은 삭제할 수 없습니다")
     if u.role == "superadmin" and db.query(User).filter(User.role == "superadmin").count() <= 1:
-        raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 삭제할 수 없습니다")
-    username = u.username
-    db.delete(u)  # relationship cascade로 기록·로그도 함께 삭제
+        raise HTTPException(status_code=400, detail="마지막 슈퍼관리자는 탈퇴 처리할 수 없습니다")
+    # 소프트 삭제: DB에서 지우지 않고 탈퇴 표시 (기록은 보존)
+    u.is_active = 0
     db.commit()
-    log_action(db, "delete_user", user=admin, detail=f"deleted {username}")
-    return {"message": "삭제됨", "id": user_id, "username": username}
+    log_action(db, "withdraw_user", user=admin, detail=f"{u.username} 탈퇴 처리")
+    return {"message": "탈퇴 처리됨", "id": user_id, "username": u.username}
 
 
 @app.get("/admin/logs")
@@ -403,9 +407,10 @@ def _latest_per_user(records):
 
 @app.get("/admin/health-stats")
 def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """회원 단위 건강 통계 + 월별 평균 추이."""
+    """회원 단위 건강 통계 + 월별 평균 추이 (활성 회원만)."""
     records = db.query(Record).all()
-    latest = list(_latest_per_user(records).values())
+    active_ids = {u.id for u in db.query(User).filter(User.is_active == 1).all()}
+    latest = [r for r in _latest_per_user(records).values() if r.user_id in active_ids]
 
     bmi_u = Counter(r.bmi_category for r in latest)
     bp_u = Counter(r.bp_category for r in latest)
@@ -417,9 +422,11 @@ def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = D
         "any_warning": sum(1 for r in latest if r.warnings and r.warnings != "[]"),
     }
 
-    # 월별 평균 (전체 기록 기준)
+    # 월별 평균 (활성 회원 기록 기준)
     m_w, m_b = {}, {}
     for r in records:
+        if r.user_id not in active_ids:
+            continue
         m = r.date[:7]  # YYYY-MM
         m_w.setdefault(m, []).append(r.weight)
         if r.bmi is not None:
@@ -453,7 +460,8 @@ def admin_health_group(metric: str, category: str = "",
                        db: Session = Depends(get_db)):
     """특정 지표 카테고리(또는 경고)에 속한 회원(최신 기록 기준) + 그룹 월별 추이."""
     records = db.query(Record).all()
-    latest = _latest_per_user(records)
+    active_ids = {u.id for u in db.query(User).filter(User.is_active == 1).all()}
+    latest = {uid: r for uid, r in _latest_per_user(records).items() if uid in active_ids}
 
     if metric == "warning":
         # 최신 기록에 경고가 있는 회원

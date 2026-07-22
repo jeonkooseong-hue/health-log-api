@@ -10,6 +10,7 @@
     --line:#e2e8f0; --field:#f8fafc;
     --brand:#0f766e; --brand-ink:#0b5a54; --brand-soft:#d5ece9;
     --ok:#15803d; --ok-bg:#e7f6ec; --bad:#b91c1c; --bad-bg:#fdeaea;
+    --warn:#b45309; --warn-bg:#fdf2e3; --info:#1d4ed8; --info-bg:#e6edfd;
     --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
     --radius:14px; --shadow:0 1px 2px rgba(16,35,46,.06),0 8px 24px rgba(16,35,46,.05);
@@ -20,6 +21,7 @@
       --line:#26303a; --field:#0f161b;
       --brand:#2dd4bf; --brand-ink:#5eead4; --brand-soft:#12352f;
       --ok:#4ade80; --ok-bg:#13251a; --bad:#f87171; --bad-bg:#2a1516;
+      --warn:#fbbf24; --warn-bg:#2a2011; --info:#60a5fa; --info-bg:#111e33;
       --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
     }
   }
@@ -64,6 +66,8 @@
   .bar-track{background:var(--field);border-radius:6px;height:22px;overflow:hidden}
   .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;transition:width .5s ease}
   .bar-val{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+  .c-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .bar-label{display:flex;align-items:center}
   .bar-click{cursor:pointer;background:none;border:none;font:inherit;text-align:left;padding:6px;border-radius:8px;width:100%}
   .bar-click:hover{background:var(--field)}
   .chart-title{font-size:12px;color:var(--muted)}
@@ -99,6 +103,8 @@
   .role-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:var(--field);color:var(--muted)}
   .role-badge.admin{background:var(--brand);color:#fff}
   .role-badge.superadmin{background:var(--bad);color:#fff}
+  .wd-badge{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bad-bg);color:var(--bad);margin-left:2px}
+  .row-wd{opacity:.55}
   .role-sel{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:12px;cursor:pointer}
   .muted-dash{color:var(--muted);font-size:13px}
   .manage-cell{display:flex;gap:8px;align-items:center}
@@ -341,14 +347,23 @@ function lineChart(series, color){
     <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}${ylab}</svg>`;
 }
 
+function statusColor(cat){
+  if (cat === "정상") return "var(--ok)";
+  if (["비만","고혈압","당뇨 의심"].includes(cat)) return "var(--bad)";
+  if (cat === "저체중") return "var(--info)";
+  return "var(--warn)";   // 과체중, 주의, 공복혈당장애
+}
+
 function distBars(container, obj, order, metric){
   const items = order.filter(k => obj[k] != null).map(k => ({label:k, value:obj[k]}));
   const max = Math.max(1, ...items.map(i=>i.value));
-  container.innerHTML = items.length ? items.map(i =>
-    `<button class="bar-row bar-click" data-metric="${metric}" data-cat="${i.label}">
-       <span class="bar-label">${i.label}</span>
-       <span class="bar-track"><span class="bar-fill" style="width:${i.value/max*100}%"></span></span>
-       <span class="bar-val">${i.value}명</span></button>`).join("") : `<div class="muted-dash">데이터 없음</div>`;
+  container.innerHTML = items.length ? items.map(i => {
+    const c = statusColor(i.label);
+    return `<button class="bar-row bar-click" data-metric="${metric}" data-cat="${i.label}">
+       <span class="bar-label"><span class="c-dot" style="background:${c}"></span>${i.label}</span>
+       <span class="bar-track"><span class="bar-fill" style="width:${i.value/max*100}%;background:${c}"></span></span>
+       <span class="bar-val" style="color:${c}">${i.value}명</span></button>`;
+  }).join("") : `<div class="muted-dash">데이터 없음</div>`;
   container.querySelectorAll(".bar-click").forEach(b =>
     b.onclick = () => openGroupDetail(b.dataset.metric, b.dataset.cat));
 }
@@ -449,7 +464,8 @@ function renderUsers(){
     const joined = (u.created_at||"").slice(0,10) || "—";
     const ctrl = (myRole === "superadmin")
       ? `<select class="role-sel" data-id="${u.id}">${opt(u.role,"user")}${opt(u.role,"admin")}${opt(u.role,"superadmin")}</select>` : "";
-    return `<tr><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
+    const wd = u.is_active ? "" : ` <span class="wd-badge">탈퇴</span>`;
+    return `<tr class="${u.is_active ? "" : "row-wd"}"><td class="num">${u.id}</td><td>${u.username||"—"}${wd}</td>`+
       `<td><span class="role-badge ${u.role}">${u.role}</span></td>`+
       `<td class="num">${u.record_count}</td><td class="num">${joined}</td>`+
       `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button>${ctrl}</td></tr>`;
@@ -515,35 +531,61 @@ async function loadUserDetail(id){
       <div class="vit"><div class="vit-label">혈당</div><div class="vit-val">${latest.blood_sugar}<span>mg/dL</span></div></div>
     </div>` : `<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
   const avg = d.stats ? `평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}` : "기록 없음";
-  const asc = d.records.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
-  const trend = asc.length ? lineChart(asc.map(r=>({label:r.date.slice(5), value:r.weight})), "var(--brand)") : "";
-  const rows = d.records.map(r =>
-    `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
-    `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
-    `<td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
-    || `<tr><td colspan="7" class="muted-dash">기록 없음</td></tr>`;
-  const delBtn = (myRole === "superadmin") ? `<button class="btn-del-user" data-id="${d.id}">이 회원 삭제</button>` : "";
+  const wdBadge = d.is_active ? "" : `<span class="wd-badge">탈퇴</span>`;
+  const actionBtn = (myRole === "superadmin")
+    ? (d.is_active
+        ? `<button class="btn-del-user" id="wdBtn">회원 탈퇴 처리</button>`
+        : `<p class="muted-dash" style="margin-top:16px">이미 탈퇴한 회원입니다. (기록은 보존됨)</p>`)
+    : "";
   $("userDetailBody").innerHTML = `
-    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span></div>
+    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${wdBadge}</div>
     <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
     <h3 class="sub2">최근 측정</h3>${vitals}
-    ${trend ? `<h3 class="sub2">체중 추이 (전체)</h3>${trend}` : ""}
-    <h3 class="sub2">전체 기록 (${d.record_count}건)</h3>
-    <div class="tbl-scroll" style="max-height:340px;overflow:auto"><table>
-      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>
-    ${delBtn}`;
-  if (myRole === "superadmin"){
-    const b = $("userDetailBody").querySelector(".btn-del-user");
-    if (b) b.onclick = () => deleteUser(d.id, d.username);
+    <h3 class="sub2">기간별 기록</h3>
+    <div class="toolbar">
+      <input class="filter-sel" id="detStart" placeholder="시작일" readonly>
+      <input class="filter-sel" id="detEnd" placeholder="종료일" readonly>
+      <button class="btn" id="detReset">전체</button>
+    </div>
+    <div id="detTrend"></div>
+    <div id="detTable"></div>
+    ${actionBtn}`;
+
+  function renderPeriod(){
+    const s = $("detStart").value, e = $("detEnd").value;
+    let list = d.records;
+    if (s) list = list.filter(r => r.date >= s);
+    if (e) list = list.filter(r => r.date <= e);
+    const asc = list.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+    $("detTrend").innerHTML = asc.length
+      ? `<h3 class="sub2">체중 추이</h3>` + lineChart(asc.map(r=>({label:r.date.slice(5), value:r.weight})), "var(--brand)")
+      : "";
+    const rows = list.map(r =>
+      `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
+      `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
+      `<td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted-dash">해당 기간 기록 없음</td></tr>`;
+    $("detTable").innerHTML = `<p class="detail-meta" style="margin:6px 0 8px">${list.length}건</p>
+      <div class="tbl-scroll" style="max-height:300px;overflow:auto"><table>
+        <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+  attachDatePicker($("detStart")); attachDatePicker($("detEnd"));
+  $("detStart").addEventListener("change", renderPeriod);
+  $("detEnd").addEventListener("change", renderPeriod);
+  $("detReset").onclick = () => { $("detStart").value = ""; $("detEnd").value = ""; renderPeriod(); };
+  renderPeriod();
+
+  if (myRole === "superadmin" && d.is_active){
+    $("wdBtn").onclick = () => deleteUser(d.id, d.username);
   }
   $("userModal").classList.remove("hidden");
 }
 
 async function deleteUser(id, name){
-  if (!confirm(`'${name}' 회원을 삭제할까요? 이 회원의 기록도 모두 삭제됩니다.`)) return;
+  if (!confirm(`'${name}' 회원을 탈퇴 처리할까요? (DB에서 지우지 않고 탈퇴로 표시, 기록 보존)`)) return;
   const res = await fetch(`/admin/users/${id}`, {method:"DELETE", headers:authHead()});
-  if (!res.ok){ const e = await res.json(); alert(e.detail || "삭제 실패"); return; }
+  if (!res.ok){ const e = await res.json(); alert(e.detail || "탈퇴 처리 실패"); return; }
   closeModal(); loadBoard();
 }
 
