@@ -391,22 +391,86 @@ def admin_stats(admin: User = Depends(get_current_admin), db: Session = Depends(
     }
 
 
+def _latest_per_user(records):
+    """사용자별 가장 최근 기록만 추린다."""
+    latest = {}
+    for r in records:
+        cur = latest.get(r.user_id)
+        if cur is None or r.date > cur.date:
+            latest[r.user_id] = r
+    return latest
+
+
 @app.get("/admin/health-stats")
 def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """전체 기록의 건강 분포 통계."""
+    """회원 단위 건강 통계 + 월별 평균 추이."""
     records = db.query(Record).all()
-    bmis = [r.bmi for r in records if r.bmi is not None]
-    weights = [r.weight for r in records]
-    warned = sum(1 for r in records if r.warnings and r.warnings != "[]")
-    return {
-        "total_records": len(records),
-        "avg_bmi": round(sum(bmis) / len(bmis), 1) if bmis else None,
-        "avg_weight": round(sum(weights) / len(weights), 1) if weights else None,
-        "warned_records": warned,
-        "bmi_dist": dict(Counter(r.bmi_category for r in records)),
-        "bp_dist": dict(Counter(r.bp_category for r in records)),
-        "sugar_dist": dict(Counter(r.sugar_category for r in records)),
+    latest = list(_latest_per_user(records).values())
+
+    bmi_u = Counter(r.bmi_category for r in latest)
+    bp_u = Counter(r.bp_category for r in latest)
+    sugar_u = Counter(r.sugar_category for r in latest)
+    risk = {
+        "obese": bmi_u.get("비만", 0),
+        "hypertension": bp_u.get("고혈압", 0),
+        "diabetes": sugar_u.get("당뇨 의심", 0),
+        "any_warning": sum(1 for r in latest if r.warnings and r.warnings != "[]"),
     }
+
+    # 월별 평균 (전체 기록 기준)
+    m_w, m_b = {}, {}
+    for r in records:
+        m = r.date[:7]  # YYYY-MM
+        m_w.setdefault(m, []).append(r.weight)
+        if r.bmi is not None:
+            m_b.setdefault(m, []).append(r.bmi)
+    monthly = [{
+        "month": m,
+        "avg_weight": round(sum(m_w[m]) / len(m_w[m]), 1),
+        "avg_bmi": round(sum(m_b[m]) / len(m_b[m]), 1) if m_b.get(m) else None,
+    } for m in sorted(m_w)]
+
+    return {
+        "user_count": len(latest),
+        "risk": risk,
+        "bmi_user_dist": dict(bmi_u),
+        "bp_user_dist": dict(bp_u),
+        "sugar_user_dist": dict(sugar_u),
+        "monthly": monthly,
+    }
+
+
+@app.get("/admin/health-group")
+def admin_health_group(metric: str, category: str,
+                       admin: User = Depends(get_current_admin),
+                       db: Session = Depends(get_db)):
+    """특정 지표 카테고리에 속한 회원(최신 기록 기준) + 그룹 월별 추이."""
+    cat_field = {"bmi": "bmi_category", "bp": "bp_category", "sugar": "sugar_category"}.get(metric)
+    val_field = {"bmi": "bmi", "bp": "systolic", "sugar": "blood_sugar"}.get(metric)
+    if cat_field is None:
+        raise HTTPException(status_code=400, detail="metric은 bmi/bp/sugar 중 하나여야 합니다")
+
+    records = db.query(Record).all()
+    latest = _latest_per_user(records)
+    group = [r for r in latest.values() if getattr(r, cat_field) == category]
+    user_ids = {r.user_id for r in group}
+
+    names = {}
+    if user_ids:
+        names = {u.id: u.username for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    users = [{"id": r.user_id, "username": names.get(r.user_id, "?"),
+              "value": getattr(r, val_field), "date": r.date} for r in group]
+    users.sort(key=lambda x: x["value"], reverse=True)
+
+    # 그룹 회원들의 월별 평균 (해당 지표 값)
+    mvals = {}
+    for r in records:
+        if r.user_id in user_ids:
+            mvals.setdefault(r.date[:7], []).append(getattr(r, val_field))
+    monthly = [{"month": m, "avg": round(sum(mvals[m]) / len(mvals[m]), 1)} for m in sorted(mvals)]
+
+    return {"metric": metric, "category": category, "user_count": len(users),
+            "users": users, "monthly": monthly}
 
 
 class RoleUpdate(BaseModel):

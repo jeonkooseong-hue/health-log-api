@@ -84,6 +84,22 @@
     margin-top:8px;font-variant-numeric:tabular-nums}
   .kpi .k-unit{font-size:13px;color:var(--muted);font-family:var(--sans);margin-left:3px}
   .kpi .k-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi-click{cursor:pointer;font:inherit;text-align:left;width:100%}
+  .kpi-click:hover{border-color:var(--brand)}
+  .k-hint{font-size:11px;color:var(--brand);margin-top:6px}
+  .memo-edit{display:flex;gap:8px;margin-top:4px}
+  .memo-edit input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:inherit;font-size:14px}
+  .btn-memo{background:var(--brand);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn-memo:hover{background:var(--brand-ink)}
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,15,20,.55);display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto;z-index:100}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);max-width:680px;width:100%;padding:26px;position:relative}
+  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
+  .modal-close:hover{color:var(--ink)}
+  .modal-title{font-size:16px;margin:0 0 14px}
+  table.hist{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
+  table.hist th,table.hist td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  table.hist th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  table.hist td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
   /* weekly trend */
   .trend{display:flex;align-items:baseline;gap:12px}
@@ -206,7 +222,7 @@
       <h2>새 기록</h2>
       <form id="recForm">
         <div class="grid">
-          <label class="full"><span>날짜</span><input name="date" type="date" required></label>
+          <label class="full"><span>날짜 (YYYY-MM-DD)</span><input name="date" type="text" placeholder="2026-07-21" pattern="\d{4}-\d{2}-\d{2}" required></label>
           <label><span>몸무게 (kg)</span><input name="weight" type="number" step="0.1" required></label>
           <label><span>키 (cm)</span><input name="height" type="number" step="0.1" required></label>
           <label><span>수축기 혈압</span><input name="systolic" type="number" required></label>
@@ -238,6 +254,14 @@
     </a>
 
   </main>
+
+  <!-- 그래프/기록 팝업 -->
+  <div class="modal-overlay hidden" id="uiModal">
+    <div class="modal">
+      <button class="modal-close" id="uiModalClose" aria-label="닫기">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -319,13 +343,20 @@ function renderKpis(s){
     return;
   }
   box.innerHTML = `
-    <div class="kpi"><div class="k-label">총 기록</div>
-      <div class="k-val">${s.count}<span class="k-unit">건</span></div></div>
-    <div class="kpi"><div class="k-label">평균 체중</div>
+    <button class="kpi kpi-click" data-act="history"><div class="k-label">총 기록</div>
+      <div class="k-val">${s.count}<span class="k-unit">건</span></div>
+      <div class="k-hint">클릭 → 전체 기록 보기</div></button>
+    <button class="kpi kpi-click" data-act="weight"><div class="k-label">평균 체중</div>
       <div class="k-val">${s.avg_weight}<span class="k-unit">kg</span></div>
-      <div class="k-sub">${s.min_weight} – ${s.max_weight} kg</div></div>
-    <div class="kpi"><div class="k-label">평균 BMI</div>
-      <div class="k-val">${s.avg_bmi}</div></div>`;
+      <div class="k-hint">클릭 → 체중 추이</div></button>
+    <button class="kpi kpi-click" data-act="bmi"><div class="k-label">평균 BMI</div>
+      <div class="k-val">${s.avg_bmi}</div>
+      <div class="k-hint">클릭 → BMI 추이</div></button>`;
+  box.querySelectorAll(".kpi-click").forEach(b => b.onclick = () => {
+    const a = b.dataset.act;
+    if (a === "history") openHistory();
+    else openTrend(a);   // "weight" | "bmi"
+  });
 }
 
 function renderReport(r){
@@ -391,9 +422,29 @@ function selectDay(id){
       <div class="dfield"><div class="df-label">걸음 / 수면</div><div class="df-val">${r.steps}<span class="df-unit">보</span> · ${r.sleep_hours}<span class="df-unit">h</span></div></div>
     </div>
     ${warns.length ? `<div class="detail-warns">⚠ ${warns.join(", ")}</div>` : ""}
-    ${r.memo ? `<div class="detail-memo"><span class="dm-label">메모</span>${r.memo}</div>` : ""}
+    <div class="detail-memo">
+      <span class="dm-label">메모</span>
+      <div class="memo-edit">
+        <input id="memoInput" value="${(r.memo || "").replace(/"/g, "&quot;")}" placeholder="메모 입력…">
+        <button class="btn-memo" id="memoSave">저장</button>
+      </div>
+    </div>
     <button class="btn-del" data-id="${r.id}">이 기록 삭제</button>`;
   $("dayDetail").querySelector(".btn-del").onclick = () => delRecord(r.id);
+  $("memoSave").onclick = () => saveMemo(r);
+}
+
+async function saveMemo(r){
+  const body = {
+    date:r.date, weight:r.weight, height:r.height, systolic:r.systolic,
+    diastolic:r.diastolic, blood_sugar:r.blood_sugar,
+    steps:r.steps, sleep_hours:r.sleep_hours, memo:$("memoInput").value,
+  };
+  const btn = $("memoSave"); btn.textContent = "저장중…"; btn.disabled = true;
+  const res = await fetch("/records/" + r.id, {method:"PUT",
+    headers:{"Content-Type":"application/json", ...authHead()}, body:JSON.stringify(body)});
+  if (res.status === 401){ showAuth(); return; }
+  loadAll();   // 갱신 (선택 유지됨)
 }
 
 async function delRecord(id){
@@ -427,6 +478,58 @@ $("recForm").addEventListener("submit", async (e) => {
   e.target.reset();
   loadAll();
 });
+
+// ----- 그래프 / 히스토리 모달 -----
+function lineChart(series, color){
+  const clean = series.filter(s => s.value != null);
+  if (!clean.length) return `<div class="detail-empty">데이터 없음</div>`;
+  const W=620,H=210,pl=44,pr=14,pt=16,pb=28,n=clean.length;
+  const vals=clean.map(s=>s.value);
+  let mn=Math.min(...vals), mx=Math.max(...vals); if (mn===mx){ mn-=1; mx+=1; }
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const X=i=> pl + (n===1? iw/2 : iw*i/(n-1));
+  const Y=v=> pt + ih*(1-(v-mn)/(mx-mn));
+  const pts=clean.map((s,i)=>`${X(i).toFixed(1)},${Y(s.value).toFixed(1)}`).join(" ");
+  const area=`${pl},${(pt+ih).toFixed(1)} ${pts} ${X(n-1).toFixed(1)},${(pt+ih).toFixed(1)}`;
+  const step=Math.max(1, Math.ceil(n/8));
+  const dots = n<=45 ? clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="2.5" fill="${color}"/>`).join("") : "";
+  const xlab = clean.map((s,i)=> (i%step===0||i===n-1) ? `<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>` : "").join("");
+  const ylab = `<text x="6" y="${(Y(mx)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mx}</text>`+
+               `<text x="6" y="${(Y(mn)+3).toFixed(1)}" font-size="10" fill="var(--muted)">${mn}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">
+    <polygon points="${area}" fill="${color}" opacity="0.08"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xlab}${ylab}</svg>`;
+}
+
+function openTrend(metric){
+  const asc = recordsCache.slice().sort((a,b)=> a.date < b.date ? -1 : 1);   // 오래된 → 최신
+  const pts = asc.map(r => ({label:r.date.slice(5), value: metric==="weight" ? r.weight : r.bmi}));
+  const title = metric==="weight" ? "체중 추이 (kg)" : "BMI 추이";
+  $("modalBody").innerHTML = `<h3 class="modal-title">${title}</h3>${lineChart(pts, "var(--brand)")}
+    <p class="detail-empty" style="text-align:left;padding:8px 0 0">${asc.length}개 기록 · ${asc[0]?.date} ~ ${asc[asc.length-1]?.date}</p>`;
+  $("uiModal").classList.remove("hidden");
+}
+
+function openHistory(){
+  const chip = (c) => `<span class="chip ${statusClass(c)}">${c}</span>`;
+  const rows = recordsCache.map(r =>
+    `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
+    `<td>${chip(r.bmi_category)}</td><td class="num">${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
+    `<td>${r.memo || "—"}</td></tr>`).join("") || `<tr><td colspan="7" class="detail-empty">기록 없음</td></tr>`;
+  $("modalBody").innerHTML = `<h3 class="modal-title">전체 기록 (${recordsCache.length}건)</h3>
+    <div class="tbl-scroll"><table class="hist">
+      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  $("uiModal").classList.remove("hidden");
+}
+
+function closeUiModal(){ $("uiModal").classList.add("hidden"); }
+$("uiModalClose").onclick = closeUiModal;
+$("uiModal").onclick = (e) => { if (e.target === $("uiModal")) closeUiModal(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeUiModal(); });
+
+// 새 기록 날짜 기본값 = 오늘
+(function(){ const el = document.querySelector('[name=date]'); if (el) el.value = new Date().toISOString().slice(0,10); })();
 
 // 시작
 if (token()) showApp(localStorage.getItem("name") || ""); else showAuth();

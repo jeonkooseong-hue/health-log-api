@@ -61,6 +61,10 @@
   .bar-track{background:var(--field);border-radius:6px;height:22px;overflow:hidden}
   .bar-fill{height:100%;background:var(--brand);border-radius:6px;min-width:2px;transition:width .5s ease}
   .bar-val{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+  .bar-click{cursor:pointer;background:none;border:none;font:inherit;text-align:left;padding:6px;border-radius:8px;width:100%}
+  .bar-click:hover{background:var(--field)}
+  .chart-title{font-size:12px;color:var(--muted)}
+  .kpi .k-unit{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:2px}
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
   .search,.filter-sel{padding:8px 12px;border:1px solid var(--line);border-radius:9px;
@@ -208,16 +212,17 @@
 
     <!-- 통계 탭 -->
     <div class="tab-panel hidden" id="tab-charts">
-      <div class="kpis" id="healthKpis"></div>
+      <div class="kpis" id="riskKpis"></div>
+      <section class="card">
+        <h2>월별 평균 추이 (전체 회원)</h2>
+        <div id="trendChart"></div>
+      </section>
+      <p class="muted-dash" style="margin:-4px 2px 12px">↓ 분포 막대를 클릭하면 해당 회원 목록과 추이 그래프를 볼 수 있어요.</p>
       <div class="cols">
-        <section class="card"><h2>BMI 분포</h2><div class="bars" id="bmiDist"></div></section>
-        <section class="card"><h2>혈압 분포</h2><div class="bars" id="bpDist"></div></section>
+        <section class="card"><h2>회원 BMI 분포 (최신 기준)</h2><div class="bars" id="bmiUserDist"></div></section>
+        <section class="card"><h2>회원 혈압 분포 (최신 기준)</h2><div class="bars" id="bpUserDist"></div></section>
       </div>
-      <div class="cols">
-        <section class="card"><h2>혈당 분포</h2><div class="bars" id="sugarDist"></div></section>
-        <section class="card"><h2>사용자별 기록 수 (상위 8)</h2><div class="bars" id="userBars"></div></section>
-      </div>
-      <section class="card"><h2>동작별 활동 수</h2><div class="bars" id="actionBars"></div></section>
+      <section class="card"><h2>회원 혈당 분포 (최신 기준)</h2><div class="bars" id="sugarUserDist"></div></section>
     </div>
   </div>
 
@@ -293,6 +298,58 @@ function bars(container, items){
     : `<div class="muted-dash">데이터 없음</div>`;
 }
 
+function lineChart(series, color){
+  const clean = series.filter(s => s.value != null);
+  if (!clean.length) return `<div class="muted-dash">데이터 없음</div>`;
+  const W=560,H=170,pl=40,pr=14,pt=16,pb=26, n=clean.length;
+  const vals=clean.map(s=>s.value);
+  let mn=Math.min(...vals), mx=Math.max(...vals);
+  if (mn===mx){ mn-=1; mx+=1; }
+  const iw=W-pl-pr, ih=H-pt-pb;
+  const X=i=> pl + (n===1? iw/2 : iw*i/(n-1));
+  const Y=v=> pt + ih*(1-(v-mn)/(mx-mn));
+  const pts=clean.map((s,i)=>`${X(i).toFixed(1)},${Y(s.value).toFixed(1)}`).join(" ");
+  const area=`${pl},${(pt+ih).toFixed(1)} ${pts} ${X(n-1).toFixed(1)},${(pt+ih).toFixed(1)}`;
+  const dots=clean.map((s,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(s.value).toFixed(1)}" r="3" fill="${color}"/>`).join("");
+  const vlab=clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${(Y(s.value)-8).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--ink)">${s.value}</text>`).join("");
+  const xlab=clean.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="10" text-anchor="middle" fill="var(--muted)">${s.label}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block">
+    <polygon points="${area}" fill="${color}" opacity="0.08"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${vlab}${xlab}</svg>`;
+}
+
+function distBars(container, obj, order, metric){
+  const items = order.filter(k => obj[k] != null).map(k => ({label:k, value:obj[k]}));
+  const max = Math.max(1, ...items.map(i=>i.value));
+  container.innerHTML = items.length ? items.map(i =>
+    `<button class="bar-row bar-click" data-metric="${metric}" data-cat="${i.label}">
+       <span class="bar-label">${i.label}</span>
+       <span class="bar-track"><span class="bar-fill" style="width:${i.value/max*100}%"></span></span>
+       <span class="bar-val">${i.value}명</span></button>`).join("") : `<div class="muted-dash">데이터 없음</div>`;
+  container.querySelectorAll(".bar-click").forEach(b =>
+    b.onclick = () => openGroupDetail(b.dataset.metric, b.dataset.cat));
+}
+
+async function openGroupDetail(metric, category){
+  const res = await fetch(`/admin/health-group?metric=${metric}&category=${encodeURIComponent(category)}`, {headers:authHead()});
+  if (!res.ok){ alert("불러오지 못했어요."); return; }
+  const d = await res.json();
+  const mname = {bmi:"BMI", bp:"수축기 혈압", sugar:"공복 혈당"}[metric];
+  const chart = lineChart(d.monthly.map(m=>({label:m.month.slice(5), value:m.avg})), "var(--brand)");
+  const rows = d.users.slice(0,50).map(u =>
+    `<tr><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
+    || `<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
+  $("userDetailBody").innerHTML = `
+    <div class="detail-head2"><span class="detail-name">${category}</span><span class="role-badge">${d.user_count}명</span></div>
+    <p class="detail-meta">최신 기록이 '${category}'인 회원 · ${mname} 기준</p>
+    <h3 class="sub2">이 그룹의 월별 평균 ${mname}</h3>${chart}
+    <h3 class="sub2">회원 목록 (${mname} 높은 순, 최대 50명)</h3>
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>이름</th><th>${mname}</th><th>측정일</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  $("userModal").classList.remove("hidden");
+}
+
 async function loadBoard(){
   const [stats, users, logs, hs] = await Promise.all([
     fetch("/admin/stats", {headers:authHead()}).then(r=>r.json()),
@@ -317,24 +374,26 @@ async function loadBoard(){
   $("logAction").innerHTML = `<option value="">모든 동작</option>` + actions.map(a => `<option value="${a}">${a}</option>`).join("");
   renderLogs();
 
-  // 차트
-  const userItems = users.users.map(u => ({label:u.username||"(빈)", value:u.record_count}))
-    .sort((a,b)=>b.value-a.value).slice(0,8);
-  bars($("userBars"), userItems);
-  const counts = {};
-  for (const l of logsCache) counts[l.action] = (counts[l.action]||0)+1;
-  bars($("actionBars"), Object.entries(counts).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));
+  // 위험군 KPI (회원 단위, 최신 기록 기준)
+  const rk = hs.risk, uc = hs.user_count;
+  $("riskKpis").innerHTML = `
+    <div class="kpi"><div class="k-label">비만 회원</div><div class="k-val">${rk.obese}<span class="k-unit">/${uc}</span></div></div>
+    <div class="kpi"><div class="k-label">고혈압 회원</div><div class="k-val">${rk.hypertension}<span class="k-unit">/${uc}</span></div></div>
+    <div class="kpi"><div class="k-label">당뇨 의심 회원</div><div class="k-val">${rk.diabetes}<span class="k-unit">/${uc}</span></div></div>
+    <div class="kpi"><div class="k-label">경고 있는 회원</div><div class="k-val">${rk.any_warning}<span class="k-unit">/${uc}</span></div></div>`;
 
-  // 건강 통계 (전체 기록 분포)
-  $("healthKpis").innerHTML = `
-    <div class="kpi"><div class="k-label">전체 기록</div><div class="k-val">${hs.total_records}</div></div>
-    <div class="kpi"><div class="k-label">평균 BMI</div><div class="k-val">${hs.avg_bmi ?? "—"}</div></div>
-    <div class="kpi"><div class="k-label">평균 체중</div><div class="k-val">${hs.avg_weight ?? "—"}</div></div>
-    <div class="kpi"><div class="k-label">경고 포함</div><div class="k-val">${hs.warned_records}</div></div>`;
-  const dist = (obj, order) => order.filter(k => obj[k] != null).map(k => ({label:k, value:obj[k]}));
-  bars($("bmiDist"), dist(hs.bmi_dist, ["저체중","정상","과체중","비만"]));
-  bars($("bpDist"), dist(hs.bp_dist, ["정상","주의","고혈압"]));
-  bars($("sugarDist"), dist(hs.sugar_dist, ["정상","공복혈당장애","당뇨 의심"]));
+  // 월별 추이 (평균 BMI + 평균 체중)
+  const ms = hs.monthly.map(m => m.month.slice(5));
+  $("trendChart").innerHTML =
+    `<div class="chart-title">평균 BMI</div>` +
+    lineChart(hs.monthly.map((m,i)=>({label:ms[i], value:m.avg_bmi})), "var(--brand)") +
+    `<div class="chart-title" style="margin-top:16px">평균 체중 (kg)</div>` +
+    lineChart(hs.monthly.map((m,i)=>({label:ms[i], value:m.avg_weight})), "var(--bad)");
+
+  // 회원 분포 (클릭 → 상세)
+  distBars($("bmiUserDist"), hs.bmi_user_dist, ["저체중","정상","과체중","비만"], "bmi");
+  distBars($("bpUserDist"), hs.bp_user_dist, ["정상","주의","고혈압"], "bp");
+  distBars($("sugarUserDist"), hs.sugar_user_dist, ["정상","공복혈당장애","당뇨 의심"], "sugar");
 }
 
 /* ---------- 페이지네이션 ---------- */
