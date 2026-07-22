@@ -121,6 +121,13 @@
   .vit-val span{font-family:var(--sans);font-size:11px;color:var(--muted);margin-left:2px}
   .btn-del-user{margin-top:18px;background:none;border:1px solid var(--bad);color:var(--bad);padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
   .btn-del-user:hover{background:var(--bad-bg)}
+  .mtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+  .mtab{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);color:var(--muted);
+    padding:6px 11px;border-radius:999px;font-size:12px;font-family:var(--mono);cursor:pointer}
+  .mtab:hover{border-color:var(--brand);color:var(--ink)}
+  .mtab.active{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .mtab-n{font-family:var(--sans);font-size:10px;background:var(--field);color:var(--muted);border-radius:999px;padding:1px 6px}
+  .mtab.active .mtab-n{background:rgba(255,255,255,.25);color:#fff}
   .ins-narr{background:var(--field);border-left:3px solid var(--brand);border-radius:0 10px 10px 0;padding:12px 14px}
   .ins-line{font-size:13px;line-height:1.7}
   .row-click{cursor:pointer}
@@ -538,6 +545,7 @@ async function loadUserDetail(id){
     <h3 class="sub2">기간별 기록</h3>
     <div class="toolbar"><input class="filter-sel" id="detStart" placeholder="시작일" readonly><input class="filter-sel" id="detEnd" placeholder="종료일" readonly><button class="btn" id="detReset">전체</button></div>
     <div id="detTrend"></div><div id="detTable"></div>${actionBtn}`;
+  let detMonth=null;
   function renderPeriod(){
     const s=$("detStart").value, e=$("detEnd").value;
     let list=d.records;
@@ -545,13 +553,22 @@ async function loadUserDetail(id){
     if(e) list=list.filter(r=>r.date<=e);
     const asc=list.slice().sort((a,b)=> a.date<b.date?-1:1);
     $("detTrend").innerHTML=asc.length?`<h3 class="sub2">체중 추이</h3>`+lineChart(asc.map(r=>({label:r.date.slice(5),value:r.weight})),"var(--brand)"):"";
-    const body=monthRows(list,(r)=>
-      `<td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
-      `<td>${r.bmi_category}</td><td>${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
-      `<td>${(r.warnings||[]).join(", ")||"—"}</td>`) || `<tr><td colspan="7" class="muted-dash">해당 기간 기록 없음</td></tr>`;
-    $("detTable").innerHTML=`<p class="detail-meta" style="margin:6px 0 8px">${list.length}건</p>
+    // 월별 탭
+    const months=[...new Set(list.map(r=>r.date.slice(0,7)))].sort().reverse();
+    if(!months.includes(detMonth)) detMonth=months[0]||null;
+    const cntOf=(m)=>list.filter(r=>r.date.slice(0,7)===m).length;
+    const tabs=months.map(m=>`<button class="mtab ${m===detMonth?"active":""}" data-m="${m}">${m}<span class="mtab-n">${cntOf(m)}</span></button>`).join("");
+    const rows=list.filter(r=>r.date.slice(0,7)===detMonth).sort((a,b)=> a.date<b.date?1:-1).map(r=>
+      `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
+      `<td>${r.bmi_category}</td><td class="num">${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
+      `<td>${r.memo||"—"}</td><td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
+      || `<tr><td colspan="8" class="muted-dash">해당 기간 기록 없음</td></tr>`;
+    $("detTable").innerHTML=`<p class="detail-meta" style="margin:6px 0 6px">전체 ${list.length}건 · 선택 월 ${detMonth||"-"}</p>
+      <div class="mtabs">${tabs}</div>
       <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
-      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>경고</th></tr></thead><tbody>${body}</tbody></table></div>`;
+      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th><th>경고</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+    $("detTable").querySelectorAll(".mtab").forEach(b=>b.onclick=()=>{ detMonth=b.dataset.m; renderPeriod(); });
   }
   attachDatePicker($("detStart")); attachDatePicker($("detEnd"));
   $("detStart").addEventListener("change",renderPeriod); $("detEnd").addEventListener("change",renderPeriod);
