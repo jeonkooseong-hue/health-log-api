@@ -42,6 +42,9 @@
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
   .kpi .k-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
   .kpi .k-val{font-family:var(--mono);font-size:30px;font-weight:600;margin-top:8px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .kpi-click{cursor:pointer;font:inherit;text-align:left;width:100%}
+  .kpi-click:hover{border-color:var(--brand)}
+  .kpi .k-hint{font-size:11px;color:var(--brand);margin-top:6px}
 
   /* tabs */
   .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
@@ -197,8 +200,8 @@
         <h2>활동 로그</h2>
         <div class="toolbar">
           <select class="filter-sel" id="logAction"><option value="">모든 동작</option></select>
-          <input type="date" class="filter-sel" id="logStart" title="시작일">
-          <input type="date" class="filter-sel" id="logEnd" title="종료일">
+          <input type="text" class="filter-sel" id="logStart" placeholder="시작 YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">
+          <input type="text" class="filter-sel" id="logEnd" placeholder="종료 YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">
           <input class="search" id="logSearch" placeholder="사용자·상세 검색…" autocomplete="off">
         </div>
         <div class="tbl-scroll">
@@ -336,14 +339,14 @@ async function openGroupDetail(metric, category){
   const res = await fetch(`/admin/health-group?metric=${metric}&category=${encodeURIComponent(category)}`, {headers:authHead()});
   if (!res.ok){ alert("불러오지 못했어요."); return; }
   const d = await res.json();
-  const mname = {bmi:"BMI", bp:"수축기 혈압", sugar:"공복 혈당"}[metric];
+  const mname = d.unit || metric;
   const chart = lineChart(d.monthly.map(m=>({label:m.month.slice(5), value:m.avg})), "var(--brand)");
   const rows = d.users.map(u =>
     `<tr class="row-click" data-id="${u.id}"><td>${u.username}</td><td class="num">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
     || `<tr><td colspan="3" class="muted-dash">회원 없음</td></tr>`;
   $("userDetailBody").innerHTML = `
-    <div class="detail-head2"><span class="detail-name">${category}</span><span class="role-badge">${d.user_count}명</span></div>
-    <p class="detail-meta">최신 기록이 '${category}'인 회원 · ${mname} 기준 · 이름 클릭 시 상세</p>
+    <div class="detail-head2"><span class="detail-name">${d.category}</span><span class="role-badge">${d.user_count}명</span></div>
+    <p class="detail-meta">최신 기록 기준 · ${mname} · 이름 클릭 시 상세</p>
     <h3 class="sub2">이 그룹의 월별 평균 ${mname}</h3>${chart}
     <h3 class="sub2">회원 목록 (${mname} 높은 순, ${d.user_count}명)</h3>
     <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
@@ -381,10 +384,11 @@ async function loadBoard(){
   // 위험군 KPI (회원 단위, 최신 기록 기준)
   const rk = hs.risk, uc = hs.user_count;
   $("riskKpis").innerHTML = `
-    <div class="kpi"><div class="k-label">비만 회원</div><div class="k-val">${rk.obese}<span class="k-unit">/${uc}</span></div></div>
-    <div class="kpi"><div class="k-label">고혈압 회원</div><div class="k-val">${rk.hypertension}<span class="k-unit">/${uc}</span></div></div>
-    <div class="kpi"><div class="k-label">당뇨 의심 회원</div><div class="k-val">${rk.diabetes}<span class="k-unit">/${uc}</span></div></div>
-    <div class="kpi"><div class="k-label">경고 있는 회원</div><div class="k-val">${rk.any_warning}<span class="k-unit">/${uc}</span></div></div>`;
+    <button class="kpi kpi-click" data-m="bmi" data-c="비만"><div class="k-label">비만 회원</div><div class="k-val">${rk.obese}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
+    <button class="kpi kpi-click" data-m="bp" data-c="고혈압"><div class="k-label">고혈압 회원</div><div class="k-val">${rk.hypertension}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
+    <button class="kpi kpi-click" data-m="sugar" data-c="당뇨 의심"><div class="k-label">당뇨 의심 회원</div><div class="k-val">${rk.diabetes}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>
+    <button class="kpi kpi-click" data-m="warning" data-c=""><div class="k-label">경고 있는 회원</div><div class="k-val">${rk.any_warning}<span class="k-unit">/${uc}</span></div><div class="k-hint">클릭 → 목록</div></button>`;
+  $("riskKpis").querySelectorAll(".kpi-click").forEach(b => b.onclick = () => openGroupDetail(b.dataset.m, b.dataset.c));
 
   // 월별 추이 (평균 BMI + 평균 체중)
   const ms = hs.monthly.map(m => m.month.slice(5));
