@@ -82,7 +82,9 @@
   .st-chip{font-size:11px;padding:2px 8px;border-radius:6px}
   .st-active{color:var(--ok);background:var(--ok-bg)} .st-dormant{color:var(--warn);background:var(--warn-bg)} .st-withdrawn{color:var(--bad);background:var(--bad-bg)}
   .muted-dash{color:var(--muted);font-size:13px}
-  .manage-cell{display:flex;gap:8px;align-items:center}
+  .manage-cell{white-space:nowrap}
+  .manage-cell > *{vertical-align:middle}
+  .manage-cell > * + *{margin-left:8px}
   .btn-view{background:var(--card);border:1px solid var(--line);color:var(--brand);padding:5px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
   .btn-view:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
   .act-chip{font-family:var(--mono);font-size:12px;color:var(--brand-ink)}
