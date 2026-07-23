@@ -8,3 +8,4 @@ health.db
 .DS_Store
 docs/*.CSV
 docs/*.csv
+data/
