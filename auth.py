@@ -1,4 +1,7 @@
 """인증(로그인) 관련 도구: 비밀번호 해시, JWT 토큰, 현재 사용자 확인"""
+import os
+import secrets
+
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -9,10 +12,11 @@ from sqlalchemy.orm import Session
 
 from database import get_db, User
 
-# 토큰 서명용 비밀키 (실제 서비스라면 환경변수로 관리해야 함)
-SECRET_KEY = "my-health-log-secret-key-change-in-production"
+# 토큰 서명용 비밀키. 배포 시 반드시 환경변수 SECRET_KEY 를 지정한다.
+# 지정하지 않으면 실행할 때마다 임의 키가 생성되어 기존 토큰은 모두 무효가 된다.
+SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 12
+TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "12"))
 
 # /docs의 Authorize 버튼과 연결. 토큰 발급 창구는 /login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")

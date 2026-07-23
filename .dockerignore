@@ -10,3 +10,9 @@ health.db
 README.md
 analysis/
 requirements-ml.txt
+data/
+docs/
+*.CSV
+*.csv
+*.parquet
+*.hwpx
