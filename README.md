@@ -35,13 +35,14 @@ python seed.py
 
 ```bash
 docker build -t health-log-api .
-docker run -d -p 8001:8000 -e SECRET_KEY=아무_긴_임의_문자열 health-log-api
+docker run -d -p 8002:8000 -e SECRET_KEY=아무_긴_임의_문자열 health-log-api
 ```
 
-접속: http://127.0.0.1:8001/docs
+접속: http://127.0.0.1:8002/docs
 
-> 컨테이너 안에서는 8000번, 호스트에서는 8001번으로 매핑합니다.
-> DB를 컨테이너 재시작 후에도 유지하려면 `-v %cd%/data:/app/data` 처럼 볼륨을 붙이세요.
+> 컨테이너 안에서는 8000번, 호스트에서는 8002번으로 매핑합니다.
+> 로컬 개발 서버(8001)와 포트가 겹치지 않게 일부러 다른 번호를 씁니다.
+> 컨테이너는 빈 DB로 시작하므로 **첫 가입자가 superadmin**이 됩니다.
 
 ## 환경 변수
 
