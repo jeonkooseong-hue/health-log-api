@@ -180,7 +180,11 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 로그인 아이디(username) 또는 환자 이름(name)으로 로그인 허용
     user = db.query(User).filter(User.username == form.username).first()
+    if user is None:
+        matches = db.query(User).filter(User.name == form.username).all()
+        user = matches[0] if len(matches) == 1 else None   # 동명이인이면 아이디로만
     if not user or not verify_password(form.password, user.hashed_password):
         log_action(db, "login_failed", username=form.username)
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀립니다")
@@ -195,7 +199,30 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 @app.get("/me")
 def me(current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "username": current_user.username, "role": current_user.role}
+    return {"id": current_user.id, "username": current_user.username, "role": current_user.role,
+            "name": current_user.name, "age": current_user.age, "sex": current_user.sex,
+            "smoker": current_user.smoker, "is_patient": current_user.person_id is not None}
+
+
+@app.get("/my/checkups")
+def my_checkups(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """본인 건강검진 시계열 (로그인한 사용자)."""
+    cks = (db.query(Checkup).filter(Checkup.user_id == current_user.id)
+             .order_by(Checkup.quarter).all())
+    return {"count": len(cks), "checkups": [_checkup_dict(c) for c in cks]}
+
+
+@app.get("/my/ai-insight")
+def my_ai_insight(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """본인 AI 위험 예측 + 행동 인사이트 + 소견."""
+    u = current_user
+    cks = (db.query(Checkup).filter(Checkup.user_id == u.id)
+             .order_by(Checkup.quarter).all())
+    risk = ml.predict_transition(cks, u.age, u.sex, u.smoker)
+    insights = behavior.behavior_insights(cks)
+    payload = {"patient": {"name": u.name, "age": u.age, "sex": u.sex, "smoker": u.smoker},
+               "risk": risk, "insights": insights}
+    return {"data": payload, "narrative": llm.make_narrative(payload)}
 
 
 # ===== 기록 CRUD (로그인 필요) =====

@@ -147,6 +147,21 @@
 
   /* table */
   .tbl-scroll{overflow-x:auto;margin:0 -18px -18px;padding:0 18px}
+  /* 환자 AI 소견 */
+  .ai-head{display:flex;align-items:center;justify-content:space-between}
+  .ai-src{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+  .ai-src.gpt{background:rgba(91,141,239,.15);color:#5b8def}
+  .ai-src.mock{background:rgba(140,150,160,.15);color:#7b8794}
+  .ai-narr{font-size:14px;line-height:1.7;margin:8px 0 12px}
+  .ai-risk{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+  .ai-risk-pct{font-size:30px;font-weight:800;line-height:1}
+  .ai-risk-meta{font-size:13px;color:#7b8794}
+  .ai-bar{height:7px;border-radius:6px;background:rgba(140,150,160,.18);margin:8px 0 4px;overflow:hidden}
+  .ai-bar-fill{height:100%;border-radius:6px;transition:width .4s}
+  .ai-drivers{font-size:12.5px;color:#7b8794;margin-top:6px}
+  .ai-foot{font-size:11.5px;color:#7b8794;margin:8px 0 0}
+  .mini-title{font-size:12.5px;color:#7b8794;font-weight:600;margin-bottom:2px}
+  .num{text-align:right}
   table{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
   th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
@@ -240,6 +255,9 @@
 
   <!-- 앱 -->
   <main class="hidden" id="appView">
+
+    <!-- 검진 환자용 뷰 (코호트 유저) -->
+    <div id="patientView" class="hidden"></div>
 
     <div class="kpis" id="kpis"><!-- JS로 채움 --></div>
 
@@ -352,11 +370,15 @@ $("logoutBtn").onclick = () => {
 };
 
 async function loadAll(){
-  const [recRes, statRes, repRes, meRes] = await Promise.all([
+  const meRes = await fetch("/me", {headers:authHead()});
+  if (meRes.status === 401){ showAuth(); return; }
+  const me = await meRes.json();
+  if (me.is_patient){ return renderPatientView(me); }   // 코호트 검진 유저
+
+  const [recRes, statRes, repRes] = await Promise.all([
     fetch("/records", {headers:authHead()}),
     fetch("/stats", {headers:authHead()}),
     fetch("/report/weekly", {headers:authHead()}),
-    fetch("/me", {headers:authHead()}),
   ]);
   if (recRes.status === 401){ showAuth(); return; }
   renderRecords((await recRes.json()).records);
@@ -365,9 +387,97 @@ async function loadAll(){
   await statRes.json();
   renderReport(await repRes.json());
 
-  const me = await meRes.json();
-  if (me.role === "admin") $("adminLink").classList.remove("hidden");
+  if (me.role === "admin" || me.role === "superadmin") $("adminLink").classList.remove("hidden");
   else $("adminLink").classList.add("hidden");
+}
+
+const GKO_P = {0:"정상", 1:"주의", 2:"위험"};
+const gcol_p = (g)=> g===2 ? "var(--bad,#d9534f)" : g===1 ? "#e8a33d" : "var(--ok,#3a9d5d)";
+
+async function renderPatientView(me){
+  // 일반 유저용 섹션 숨기고 검진 뷰만 표시
+  document.querySelectorAll("#appView > .card, #appView > .kpis, #appView > .admin-link")
+    .forEach(el => el.classList.add("hidden"));
+  const pv = $("patientView"); pv.classList.remove("hidden");
+  $("who").textContent = me.name || me.username;
+  pv.innerHTML = `<div class="muted-dash" style="padding:20px 0">불러오는 중…</div>`;
+
+  const [ckRes, aiRes] = await Promise.all([
+    fetch("/my/checkups", {headers:authHead()}),
+    fetch("/my/ai-insight", {headers:authHead()}),
+  ]);
+  const cks = (await ckRes.json()).checkups || [];
+  const ai = aiRes.ok ? await aiRes.json() : null;
+  if (!cks.length){ pv.innerHTML = `<section class="card"><p>검진 기록이 없어요.</p></section>`; return; }
+
+  const last = cks[cks.length-1];
+  const who = `${me.age??"?"}세 · ${me.sex==="M"?"남성":"여성"} · ${me.smoker?"흡연":"비흡연"}`;
+  const chip = (label,g)=>`<span class="chip" style="background:${gcol_p(g)}22;color:${gcol_p(g)};border:1px solid ${gcol_p(g)}55">${label}</span>`;
+
+  // KPI
+  const bmiG = last.bmi>=25?2:last.bmi>=23?1:0;
+  const bpG  = (last.systolic>=140||last.diastolic>=90)?2:(last.systolic>=120||last.diastolic>=80)?1:0;
+  const fbsG = last.fbs>=126?2:last.fbs>=100?1:0;
+  const kpis = `<div class="kpis">
+    <div class="kpi"><div class="k-label">종합판정</div><div class="k-val" style="color:${gcol_p(last.grade)}">${GKO_P[last.grade]}</div><div class="k-sub">최근 검진 ${last.date}</div></div>
+    <div class="kpi"><div class="k-label">BMI</div><div class="k-val">${last.bmi}</div><div class="k-sub">${chip(bmiG===2?"비만":bmiG===1?"과체중":"정상",bmiG)}</div></div>
+    <div class="kpi"><div class="k-label">혈압</div><div class="k-val">${last.systolic}<span class="k-unit">/${last.diastolic}</span></div><div class="k-sub">${chip(bpG===2?"고혈압":bpG===1?"주의":"정상",bpG)}</div></div>
+    <div class="kpi"><div class="k-label">공복혈당</div><div class="k-val">${last.fbs}<span class="k-unit">mg/dL</span></div><div class="k-sub">${chip(fbsG===2?"당뇨의심":fbsG===1?"경계":"정상",fbsG)}</div></div>
+  </div>`;
+
+  // AI 소견
+  let aiHtml = "";
+  if (ai){
+    const r = ai.data.risk||{}, eff=(ai.data.insights&&ai.data.insights.effects)||[];
+    let rl = "";
+    if (r.available && r.eligible && r.prob!=null){
+      const pct=(r.prob*100).toFixed(0), base=((r.baseline||0)*100).toFixed(0);
+      const lvl=r.prob>=(r.baseline*2)?"높음":r.prob>=r.baseline?"보통":"낮음";
+      const col=lvl==="높음"?"var(--bad,#d9534f)":lvl==="보통"?"#e8a33d":"var(--ok,#3a9d5d)";
+      const w=Math.min(100,r.prob*100).toFixed(0);
+      rl=`<div class="ai-risk"><span class="ai-risk-pct" style="color:${col}">${pct}%</span>
+        <span class="ai-risk-meta">다음 검진에 위험군 전환 확률 · 평균 ${base}% 대비 <b style="color:${col}">${lvl}</b></span></div>
+        <div class="ai-bar"><div class="ai-bar-fill" style="width:${w}%;background:${col}"></div></div>`;
+      if ((r.drivers||[]).length) rl+=`<div class="ai-drivers">주요 요인: ${r.drivers.map(x=>x.feature).join(" · ")}</div>`;
+    } else if (r.available && !r.eligible){
+      rl=`<div class="ai-risk-meta">현재 위험군입니다. 정기적인 진료와 관리가 필요합니다.</div>`;
+    }
+    const sig=eff.filter(e=>e.verdict==="유의");
+    const rows=sig.map(e=>`<tr><td>${e.tag}</td><td>${e.metric_ko}</td>
+      <td class="num" style="color:${e.direction==="감소"?"var(--ok,#3a9d5d)":"var(--bad,#d9534f)"};font-weight:600">${e.delta>0?"+":""}${e.delta}</td>
+      <td class="num">${e.n}</td><td class="num">${e.p_adj}</td></tr>`).join("");
+    aiHtml=`<section class="card">
+      <div class="ai-head"><h2 style="margin:0">AI 건강 소견</h2><span class="ai-src ${ai.narrative.source}">${ai.narrative.source==="gpt"?"GPT":"규칙기반"}</span></div>
+      <p class="ai-narr">${ai.narrative.text}</p>
+      ${rl}
+      ${rows?`<div class="tbl-scroll" style="margin-top:12px"><table>
+        <thead><tr><th>생활습관</th><th>지표</th><th>변화</th><th>횟수</th><th>보정p</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+        <p class="ai-foot">통계적으로 유의한(다중보정 후) 습관–지표 연관만 표시</p>`:
+        `<p class="ai-foot">아직 뚜렷한 생활습관–지표 연관은 관찰되지 않았어요.</p>`}
+    </section>`;
+  }
+
+  // 추이 차트
+  const asc = cks.slice().sort((a,b)=>a.quarter-b.quarter);
+  const trend=`<section class="card"><h2>검진 추이</h2>
+    <div class="mini-title">수축기 혈압</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.systolic})),"#d9534f",[{y:140,color:"#d9534f",label:"고혈압"},{y:120,color:"#e8a33d",label:"주의"}])}
+    <div class="mini-title" style="margin-top:12px">공복혈당</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.fbs})),"#e8a33d",[{y:126,color:"#d9534f",label:"당뇨"},{y:100,color:"#e8a33d",label:"경계"}])}
+    <div class="mini-title" style="margin-top:12px">체질량지수(BMI)</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.bmi})),"#5b8def",[{y:25,color:"#d9534f",label:"비만"},{y:23,color:"#e8a33d",label:"과체중"}])}
+  </section>`;
+
+  // 검진 이력
+  const hist = cks.slice().sort((a,b)=>b.quarter-a.quarter).map(c=>
+    `<tr><td class="num">Q${c.quarter}</td><td class="num">${c.date}</td><td class="num">${c.bmi}</td>
+     <td class="num">${c.systolic}/${c.diastolic}</td><td class="num">${c.fbs}</td>
+     <td><span style="color:${gcol_p(c.grade)};font-weight:600">${GKO_P[c.grade]}</span></td>
+     <td>${c.memo||"—"}</td></tr>`).join("");
+  const table=`<section class="card"><h2>검진 이력</h2>
+    <div class="tbl-scroll" style="max-height:360px;overflow:auto"><table>
+    <thead><tr><th>분기</th><th>검진일</th><th>BMI</th><th>혈압</th><th>혈당</th><th>판정</th><th>메모</th></tr></thead>
+    <tbody>${hist}</tbody></table></div></section>`;
+
+  pv.innerHTML = kpis + aiHtml + trend + table;
 }
 
 function renderKpis(){
