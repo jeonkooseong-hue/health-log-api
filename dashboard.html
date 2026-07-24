@@ -377,14 +377,12 @@ async function loadBoard(){
   $("logAction").innerHTML=`<option value="">모든 동작</option>`+actions.map(a=>`<option value="${a}">${a}</option>`).join("");
   renderLogs();
 
-  // 추이 (BMI 밴드 포함)
-  const ms=hs.monthly.map(m=>m.month.slice(5));
-  const bmiBands=[{y:18.5,label:"저체중",color:"var(--info)"},{y:23,label:"정상↑",color:"var(--warn)"},{y:25,label:"비만",color:"var(--bad)"}];
+  // 추이 — 분기별 위험 판정 비율(%)
+  const mo=hs.monthly||[];
   $("trendChart").innerHTML=
-    `<div class="chart-title">평균 BMI (기준선: 18.5 / 23 / 25)</div>`+
-    lineChart(hs.monthly.map((m,i)=>({label:ms[i],value:m.avg_bmi})),"var(--brand)",bmiBands)+
-    `<div class="chart-title" style="margin-top:16px">평균 체중 (kg)</div>`+
-    lineChart(hs.monthly.map((m,i)=>({label:ms[i],value:m.avg_weight})),"var(--bad)");
+    `<div class="chart-title">분기별 위험 판정 비율 (%) — 전체 활성 회원</div>`+
+    (mo.length? lineChart(mo.map(m=>({label:"Q"+m.quarter,value:m.risk_pct})),"var(--bad)",
+        [{y:30,label:"30%",color:"var(--warn)"}]) : `<div class="muted-dash">데이터 없음</div>`);
   distNumbers($("bmiUserDist"),hs.bmi_user_dist,["저체중","정상","과체중","비만"],"bmi");
   distNumbers($("bpUserDist"),hs.bp_user_dist,["정상","주의","고혈압"],"bp");
   distNumbers($("sugarUserDist"),hs.sugar_user_dist,["정상","공복혈당장애","당뇨 의심"],"sugar");
