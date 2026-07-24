@@ -600,9 +600,9 @@ async function loadUserDetail(id){
   const asc=cks.slice().sort((a,b)=>a.quarter-b.quarter);
   if(asc.length){
     $("detTrend").innerHTML=
-      `<div class="mini-chart"><div class="mini-title">수축기 혈압</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.systolic})),"#d9534f",[{from:140,to:200,color:"rgba(217,83,79,.10)"}])}</div>`+
-      `<div class="mini-chart"><div class="mini-title">공복혈당</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.fbs})),"#e8a33d",[{from:126,to:300,color:"rgba(232,163,61,.10)"}])}</div>`+
-      `<div class="mini-chart"><div class="mini-title">체질량지수(BMI)</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.bmi})),"#5b8def",[{from:25,to:40,color:"rgba(217,83,79,.08)"}])}</div>`;
+      `<div class="mini-chart"><div class="mini-title">수축기 혈압</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.systolic})),"#d9534f",[{y:140,color:"#d9534f",label:"고혈압"},{y:120,color:"#e8a33d",label:"주의"}])}</div>`+
+      `<div class="mini-chart"><div class="mini-title">공복혈당</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.fbs})),"#e8a33d",[{y:126,color:"#d9534f",label:"당뇨"},{y:100,color:"#e8a33d",label:"경계"}])}</div>`+
+      `<div class="mini-chart"><div class="mini-title">체질량지수(BMI)</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.bmi})),"#5b8def",[{y:25,color:"#d9534f",label:"비만"},{y:23,color:"#e8a33d",label:"과체중"}])}</div>`;
   }
   // 검진 테이블 (분기 내림차순) + 메모 강조
   const rows=cks.slice().sort((a,b)=>b.quarter-a.quarter).map(c=>

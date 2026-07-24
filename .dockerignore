@@ -2,8 +2,14 @@ venv/
 __pycache__/
 *.pyc
 data.json
-*.db
-health.db
+# health.db 는 배포 이미지에 포함한다 (코호트 5천명 검진 데이터).
+# 다른 임시 db 만 제외.
+*.db-journal
+health.db.bak
+# 시크릿 — 이미지에 절대 포함 금지 (배포 시 -e 환경변수로 주입)
+.env
+docs/key.txt
+*.key
 .git/
 .gitignore
 .dockerignore

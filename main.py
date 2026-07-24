@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+import re as _re
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from datetime import date, timedelta
@@ -24,20 +25,28 @@ app = FastAPI(title="마이 헬스 로그 API", version="2.0")
 # ===== 요청 검증용 모델 (Pydantic) =====
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=2, max_length=30)
+    password: str = Field(min_length=4, max_length=100)
 
 
 class RecordIn(BaseModel):
+    # 생리학적으로 가능한 범위로 제한 (범위 밖이면 422)
     date: str
-    weight: float
-    height: float
-    systolic: int
-    diastolic: int
-    blood_sugar: int
-    steps: int = 0
-    sleep_hours: float = 0.0
-    memo: str = ""
+    weight: float = Field(ge=2, le=400, description="몸무게 kg")
+    height: float = Field(ge=30, le=250, description="키 cm")
+    systolic: int = Field(ge=50, le=300, description="수축기 혈압")
+    diastolic: int = Field(ge=30, le=200, description="이완기 혈압")
+    blood_sugar: int = Field(ge=20, le=800, description="공복 혈당")
+    steps: int = Field(default=0, ge=0, le=200_000)
+    sleep_hours: float = Field(default=0.0, ge=0, le=24)
+    memo: str = Field(default="", max_length=500)
+
+    @field_validator("date")
+    @classmethod
+    def _check_date(cls, v):
+        if not _re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+            raise ValueError("날짜는 YYYY-MM-DD 형식이어야 합니다")
+        return v
 
 
 # ===== 건강 계산 함수들 =====
