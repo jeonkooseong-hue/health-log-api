@@ -34,8 +34,9 @@
   .shot img { max-width:100%; max-height:165mm; border:1px solid #ccd5e2; border-radius:6px; }
   .shot.tall img { max-height:215mm; width:auto; }
   .shot .cap { font-size:9.5pt; color:#54617a; margin-top:5px; text-align:center; }
-  .grid2 { display:flex; gap:12px; }
+  .grid2 { display:flex; gap:12px; page-break-inside:avoid; }
   .grid2 .shot { flex:1; }
+  .grid2 .shot img { max-height:118mm; }
   .badge { display:inline-block; background:#e6f4ea; color:#2a7d46; font-size:9pt;
            padding:1px 8px; border-radius:10px; font-weight:600; }
   .pill { display:inline-block; background:#eef2f8; padding:2px 9px; border-radius:12px;
@@ -56,7 +57,9 @@
     <tr><td>제출자</td><td>________________ (GitHub: jeonkooseong-hue)</td></tr>
     <tr><td>소속 / 반</td><td>________________</td></tr>
     <tr><td>GitHub</td><td>https://github.com/jeonkooseong-hue/health-log-api</td></tr>
-    <tr><td>배포 URL</td><td>https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/docs</td></tr>
+    <tr><td>API 문서</td><td>https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/docs</td></tr>
+    <tr><td>관리자 대시보드</td><td>https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/dashboard</td></tr>
+    <tr><td>사용자 화면</td><td>https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/ui</td></tr>
     <tr><td>제출일</td><td>2026. 07. ____</td></tr>
   </tbody></table>
 </div>
@@ -107,9 +110,15 @@
 
 <h2>4. 화면 캡쳐 — 관리자 대시보드</h2>
 
-<div class="shot">
-  <img src="screenshots/01-members.png" alt="회원 관리">
-  <div class="cap">▲ 회원 관리 — 상단 위험군 카드(비만·고혈압·당뇨·경고) + 회원 목록(이름·인적정보·건강상태·검진수). 위험 회원은 좌측 빨강 스트라이프.</div>
+<div class="grid2">
+  <div class="shot">
+    <img src="screenshots/01-members.png" alt="회원 관리">
+    <div class="cap">▲ 회원 관리 — 위험군 카드 + 회원 목록(이름·인적정보·건강상태·검진수)</div>
+  </div>
+  <div class="shot">
+    <img src="screenshots/04-stats.png" alt="통계">
+    <div class="cap">▲ 통계 — 분기별 위험비율 추이 + BMI·혈압·혈당 분포</div>
+  </div>
 </div>
 
 <div class="grid2">
@@ -119,13 +128,8 @@
   </div>
   <div class="shot">
     <img src="screenshots/03-logs.png" alt="활동 로그">
-    <div class="cap">▲ 활동 로그 — 로그인·기록생성·실패 이력 (기간·동작 필터)</div>
+    <div class="cap">▲ 활동 로그 — 로그인·기록생성·실패 이력 (필터)</div>
   </div>
-</div>
-
-<div class="shot">
-  <img src="screenshots/04-stats.png" alt="통계">
-  <div class="cap">▲ 통계 탭 — 분기별 위험 판정 비율 추이 + BMI·혈압·혈당 분포 (클릭 시 해당 회원 목록)</div>
 </div>
 
 <div class="pagebreak"></div>
