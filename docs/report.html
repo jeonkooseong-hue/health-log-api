@@ -30,8 +30,9 @@
   .meta td:first-child { color:#54617a; font-weight:600; }
   .lead { background:#f5f8fc; border-left:4px solid #1b3a6b; padding:12px 16px; border-radius:0 8px 8px 0;
           margin:14px 0; }
-  .shot { margin:14px 0; page-break-inside:avoid; }
-  .shot img { width:100%; border:1px solid #ccd5e2; border-radius:6px; }
+  .shot { margin:14px 0; page-break-inside:avoid; text-align:center; }
+  .shot img { max-width:100%; max-height:210mm; border:1px solid #ccd5e2; border-radius:6px; }
+  .shot.tall img { max-height:225mm; width:auto; }
   .shot .cap { font-size:9.5pt; color:#54617a; margin-top:5px; text-align:center; }
   .grid2 { display:flex; gap:12px; }
   .grid2 .shot { flex:1; }
@@ -131,7 +132,7 @@
 <div class="pagebreak"></div>
 <h2>5. 화면 캡쳐 — 사용자 화면 &amp; AI</h2>
 
-<div class="shot">
+<div class="shot tall">
   <img src="screenshots/05-ui.png" alt="사용자 화면">
   <div class="cap">▲ 개인 화면 — 종합판정 KPI(위험) · <b>AI 건강 소견(GPT)</b> · 오늘 기록 입력폼(범위 가드) · 내 일일 기록(BMI 자동계산·분류)</div>
 </div>
