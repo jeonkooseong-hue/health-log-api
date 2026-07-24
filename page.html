@@ -402,15 +402,16 @@ async function renderPatientView(me){
   $("who").textContent = me.name || me.username;
   pv.innerHTML = `<div class="muted-dash" style="padding:20px 0">불러오는 중…</div>`;
 
-  const [ckRes, aiRes] = await Promise.all([
+  const [ckRes, aiRes, recRes] = await Promise.all([
     fetch("/my/checkups", {headers:authHead()}),
     fetch("/my/ai-insight", {headers:authHead()}),
+    fetch("/records", {headers:authHead()}),
   ]);
   const cks = (await ckRes.json()).checkups || [];
   const ai = aiRes.ok ? await aiRes.json() : null;
-  if (!cks.length){ pv.innerHTML = `<section class="card"><p>검진 기록이 없어요.</p></section>`; return; }
+  const myRecords = recRes.ok ? ((await recRes.json()).records || []) : [];
 
-  const last = cks[cks.length-1];
+  const last = cks.length ? cks[cks.length-1] : null;
   const who = `${me.age??"?"}세 · ${me.sex==="M"?"남성":"여성"} · ${me.smoker?"흡연":"비흡연"}`;
   const chip = (label,g)=>`<span class="chip" style="background:${gcol_p(g)}22;color:${gcol_p(g)};border:1px solid ${gcol_p(g)}55">${label}</span>`;
 
@@ -472,12 +473,59 @@ async function renderPatientView(me){
      <td class="num">${c.systolic}/${c.diastolic}</td><td class="num">${c.fbs}</td>
      <td><span style="color:${gcol_p(c.grade)};font-weight:600">${GKO_P[c.grade]}</span></td>
      <td>${c.memo||"—"}</td></tr>`).join("");
-  const table=`<section class="card"><h2>검진 이력</h2>
+  const table = cks.length ? `<section class="card"><h2>병원 검진 이력 (분기별)</h2>
     <div class="tbl-scroll" style="max-height:360px;overflow:auto"><table>
     <thead><tr><th>분기</th><th>검진일</th><th>BMI</th><th>혈압</th><th>혈당</th><th>판정</th><th>메모</th></tr></thead>
-    <tbody>${hist}</tbody></table></div></section>`;
+    <tbody>${hist}</tbody></table></div></section>` : "";
 
-  pv.innerHTML = kpis + aiHtml + trend + table;
+  // 일일 기록 입력폼 (본인이 직접 입력 → BMI 자동계산·분류)
+  const today = new Date().toISOString().slice(0,10);
+  const dailyForm = `<section class="card"><h2>오늘 기록 입력</h2>
+    <form id="pDaily">
+      <div class="grid">
+        <label class="full"><span>날짜</span><input name="date" type="text" value="${today}" readonly required></label>
+        <label><span>몸무게 (kg)</span><input name="weight" type="number" step="0.1" required></label>
+        <label><span>키 (cm)</span><input name="height" type="number" step="0.1" required></label>
+        <label><span>수축기 혈압</span><input name="systolic" type="number" required></label>
+        <label><span>이완기 혈압</span><input name="diastolic" type="number" required></label>
+        <label><span>공복 혈당 (mg/dL)</span><input name="blood_sugar" type="number" required></label>
+        <label class="full"><span>메모 (선택)</span><input name="memo" type="text" placeholder="오늘 컨디션·생활습관"></label>
+      </div>
+      <button class="primary" type="submit" style="width:100%">기록 추가</button>
+      <div id="pDailyMsg" class="msg"></div>
+    </form></section>`;
+
+  // 내 일일 기록 목록 (BMI·분류·경고 자동계산됨)
+  const dailyRows = myRecords.slice().sort((a,b)=> a.date<b.date?1:-1).map(r=>{
+    const cc=(c)=>`<span class="chip ${statusClass(c)}">${c}</span>`;
+    return `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td>
+      <td class="num">${r.bmi} ${cc(r.bmi_category)}</td>
+      <td class="num">${r.systolic}/${r.diastolic} ${cc(r.bp_category)}</td>
+      <td class="num">${r.blood_sugar} ${cc(r.sugar_category)}</td>
+      <td>${(r.warnings||[]).join(", ")||"—"}</td><td>${r.memo||"—"}</td></tr>`;}).join("");
+  const dailyList = myRecords.length ? `<section class="card"><h2>내 일일 기록 (${myRecords.length}건)</h2>
+    <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
+    <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>혈압</th><th>혈당</th><th>경고</th><th>메모</th></tr></thead>
+    <tbody>${dailyRows}</tbody></table></div></section>` : "";
+
+  pv.innerHTML = kpis + aiHtml + dailyForm + dailyList + trend + table;
+
+  // 입력폼 제출 → POST /records → 화면 갱신
+  $("pDaily").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const f = e.target, msg = $("pDailyMsg"); msg.className="msg"; msg.textContent="";
+    const body = { date:f.date.value, weight:+f.weight.value, height:+f.height.value,
+      systolic:+f.systolic.value, diastolic:+f.diastolic.value,
+      blood_sugar:+f.blood_sugar.value, memo:f.memo.value };
+    const res = await fetch("/records", {method:"POST",
+      headers:{"Content-Type":"application/json", ...authHead()}, body:JSON.stringify(body)});
+    if (res.ok){ renderPatientView(me); }         // 성공 → 목록 갱신
+    else {
+      let d; try{ d=await res.json(); }catch{ d={}; }
+      const detail = Array.isArray(d.detail) ? d.detail[0]?.msg : d.detail;
+      msg.className="msg err"; msg.textContent = detail || "입력값을 확인하세요 (범위 초과 등)";
+    }
+  });
 }
 
 function renderKpis(){
