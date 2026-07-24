@@ -5,6 +5,7 @@
 ```mermaid
 erDiagram
     USER ||--o{ RECORD : "가진다 (1:N)"
+    USER ||--o{ CHECKUP : "검진받는다 (1:N)"
     USER ||--o{ ACTIVITY_LOG : "남긴다 (1:N)"
 
     USER {
@@ -14,6 +15,11 @@ erDiagram
         string role "권한: user / admin / superadmin"
         datetime created_at "가입일시"
         string status "active(활성)/dormant(휴면)/withdrawn(탈퇴)"
+        string name "환자 한글 이름 (코호트 적재분)"
+        int person_id "코호트 원본 person_id"
+        int age "나이 (첫 검진 기준)"
+        string sex "M / F"
+        boolean smoker "흡연 여부"
     }
 
     RECORD {
@@ -35,6 +41,29 @@ erDiagram
         string warnings "계산값 (JSON 문자열)"
     }
 
+    CHECKUP {
+        int id PK "검진 고유번호"
+        int user_id FK "USER.id 참조 (수검자)"
+        int quarter "분기 0~19 (5년)"
+        string date "검진일 YYYY-MM-DD"
+        float bmi "체질량지수"
+        float waist "허리둘레"
+        int systolic "수축기 혈압"
+        int diastolic "이완기 혈압"
+        int fbs "공복혈당"
+        int total_chol "총콜레스테롤"
+        int triglyceride "중성지방"
+        int hdl "HDL 콜레스테롤"
+        int ldl "LDL 콜레스테롤"
+        float hemoglobin "혈색소"
+        int ast "간수치 AST"
+        int alt "간수치 ALT"
+        int ggt "감마지티피"
+        float creatinine "크레아티닌"
+        int grade "종합판정 0정상/1주의/2위험"
+        string memo "생활습관 메모 (지표 편차 기반)"
+    }
+
     ACTIVITY_LOG {
         int id PK "로그 고유번호"
         int user_id FK "USER.id 참조 (행위자)"
@@ -45,7 +74,8 @@ erDiagram
     }
 ```
 
-- **관계**: 사용자(`USER`) 1명이 여러 기록(`RECORD`)과 여러 활동 로그(`ACTIVITY_LOG`)를 가진다 (각각 1:N).
+- **관계**: 사용자(`USER`) 1명이 여러 기록(`RECORD`)·검진(`CHECKUP`)·활동 로그(`ACTIVITY_LOG`)를 가진다 (각각 1:N).
+- `RECORD`(일일 자가기록)와 `CHECKUP`(분기 건강검진)은 별개다. 대시보드의 위험 예측·인사이트는 `CHECKUP` 시계열을 쓴다.
 - **PK** = Primary Key, **FK** = Foreign Key, **UK** = Unique.
 - 실제 정의 위치: [`database.py`](../database.py) · DDL: [`schema.sql`](schema.sql)
 
@@ -58,6 +88,10 @@ erDiagram
 | hashed_password | String | | 서버 처리 | 평문 비번을 bcrypt로 해시해 저장 |
 | role | String | | 서버 처리 | `user`/`admin`/`superadmin`. 기본 `user`, **첫 가입자는 `superadmin`** |
 | created_at | DateTime | | 자동 | 가입일시 |
+| status | String | | 서버 처리 | `active`/`dormant`/`withdrawn` |
+| name | String | idx | 코호트 적재 | 환자 한글 이름 (직접 가입한 관리자는 비어 있음) |
+| person_id | Integer | idx | 코호트 적재 | 코호트 원본 person_id |
+| age / sex / smoker | Int/String/Bool | | 코호트 적재 | 나이 / 성별(M·F) / 흡연 여부 |
 
 ## 3. RECORD 테이블
 
@@ -75,6 +109,28 @@ erDiagram
 | bp_category | String | | 서버 계산 | 정상/주의/고혈압 |
 | sugar_category | String | | 서버 계산 | 정상/공복혈당장애/당뇨 의심 |
 | warnings | Text | | 서버 계산 | 경고 목록 (JSON 문자열) |
+
+## 3-2. CHECKUP 테이블 (건강검진 시계열)
+
+분기별(3개월) 1건씩 쌓이는 건강검진 기록. 코호트 데이터를 적재해 채운다.
+대시보드의 위험 예측·행동 인사이트는 이 표를 쓴다.
+
+| 칼럼 | 타입 | 키 | 설명 |
+|------|------|----|------|
+| id | Integer | PK | 검진 고유번호 |
+| user_id | Integer | FK, idx | 수검자 (USER.id) |
+| quarter | Integer | idx | 분기 0~19 (5년) |
+| date | String | idx | 검진일 |
+| bmi / waist | Float | | 체질량지수 / 허리둘레 |
+| systolic / diastolic | Integer | | 수축기 / 이완기 혈압 |
+| fbs | Integer | | 공복혈당 |
+| total_chol / triglyceride / hdl / ldl | Integer | | 지질 4종 |
+| hemoglobin / ast / alt / ggt / creatinine | Float/Int | | 혈색소·간수치·신장 |
+| grade | Integer | idx | 종합판정 0정상 / 1주의 / 2위험 |
+| memo | String | | 생활습관 메모 (지표 편차로 역생성) |
+
+> **RECORD vs CHECKUP** — `RECORD`는 사용자가 앱에서 매일 입력하는 자가기록(혈압·혈당·메모),
+> `CHECKUP`은 병원 검진에 해당하는 분기별 14지표 시계열이다. ML 위험 예측과 통계 인사이트는 `CHECKUP` 기반.
 
 ## 4. ACTIVITY_LOG 테이블
 

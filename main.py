@@ -8,9 +8,12 @@ from datetime import date, timedelta
 from collections import Counter
 import json
 
-from database import Base, engine, get_db, User, Record, ActivityLog
+from database import Base, engine, get_db, User, Record, ActivityLog, Checkup
 from auth import (hash_password, verify_password, create_access_token,
                  get_current_user, get_current_admin, get_current_superadmin)
+import ml
+import stats as behavior
+import llm
 
 # 서버 시작 시 표(테이블)가 없으면 만든다
 Base.metadata.create_all(bind=engine)
@@ -326,21 +329,26 @@ def _health_level(r):
     return "정상"
 
 
+_GRADE_LABEL = {0: "정상", 1: "주의", 2: "위험"}
+
+
 @app.get("/admin/users")
 def admin_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     users = db.query(User).all()
     # 전건 로딩 대신 SQL 집계 (대용량 대응)
-    counts = dict(db.query(Record.user_id, func.count(Record.id)).group_by(Record.user_id).all())
-    latest = _latest_records_sql(db)
+    counts = dict(db.query(Checkup.user_id, func.count(Checkup.id)).group_by(Checkup.user_id).all())
+    latest = _latest_checkup_sql(db, active_only=False)      # {user_id: Checkup}
     logins = dict(db.query(ActivityLog.user_id, func.max(ActivityLog.created_at))
                     .filter(ActivityLog.action == "login")
                     .group_by(ActivityLog.user_id).all())
     result = []
     for u in users:
+        c = latest.get(u.id)
         result.append({
             "id": u.id, "username": u.username, "role": u.role, "status": u.status,
+            "name": u.name, "age": u.age, "sex": u.sex, "smoker": u.smoker,
             "record_count": counts.get(u.id, 0),
-            "health": _health_level(latest.get(u.id)),
+            "health": _GRADE_LABEL.get(c.grade) if c else None,
             "created_at": u.created_at.isoformat() if u.created_at else None,
             "last_login": logins[u.id].isoformat() if logins.get(u.id) else None,
         })
@@ -354,30 +362,83 @@ def admin_user_detail(user_id: int,
     u = db.query(User).filter(User.id == user_id).first()
     if u is None:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
-    records = db.query(Record).filter(Record.user_id == u.id).order_by(Record.date.desc()).all()
+    cks = db.query(Checkup).filter(Checkup.user_id == u.id).order_by(Checkup.quarter).all()
     logs = db.query(ActivityLog).filter(ActivityLog.user_id == u.id).order_by(ActivityLog.id.desc()).limit(10).all()
 
     stats = None
-    if records:
-        weights = [r.weight for r in records]
-        bmis = [r.bmi for r in records if r.bmi is not None]
+    if cks:
+        last = cks[-1]
+        bmis = [c.bmi for c in cks if c.bmi is not None]
         stats = {
-            "avg_weight": round(sum(weights) / len(weights), 1),
             "avg_bmi": round(sum(bmis) / len(bmis), 1) if bmis else None,
-            "latest_date": records[0].date,
+            "latest_date": last.date,
+            "latest_grade": _GRADE_LABEL.get(last.grade),
+            "latest_systolic": last.systolic, "latest_fbs": last.fbs,
         }
     return {
-        "id": u.id, "username": u.username, "role": u.role,
-        "status": u.status,
+        "id": u.id, "username": u.username, "role": u.role, "status": u.status,
+        "name": u.name, "age": u.age, "sex": u.sex, "smoker": u.smoker,
         "created_at": u.created_at.isoformat() if u.created_at else None,
-        "record_count": len(records),
+        "record_count": len(cks),
         "stats": stats,
-        "records": [record_to_dict(r) for r in records],   # 전체 기록 (최신순)
+        "checkups": [_checkup_dict(c) for c in cks],        # 전체 검진 (분기순)
         "recent_logs": [{
             "action": l.action, "detail": l.detail,
             "created_at": l.created_at.isoformat() if l.created_at else None,
         } for l in logs],
     }
+
+
+def _checkup_dict(c: Checkup) -> dict:
+    return {k: getattr(c, k) for k in (
+        "id", "quarter", "date", "bmi", "waist", "systolic", "diastolic", "fbs",
+        "total_chol", "triglyceride", "hdl", "ldl", "hemoglobin", "ast", "alt",
+        "ggt", "creatinine", "grade", "memo")}
+
+
+@app.get("/admin/users/{user_id}/checkups")
+def admin_user_checkups(user_id: int,
+                        admin: User = Depends(get_current_admin),
+                        db: Session = Depends(get_db)):
+    """환자의 건강검진 시계열 (분기 오름차순)."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    cks = (db.query(Checkup).filter(Checkup.user_id == user_id)
+             .order_by(Checkup.quarter).all())
+    return {
+        "user": {"id": u.id, "name": u.name, "age": u.age, "sex": u.sex,
+                 "smoker": u.smoker, "person_id": u.person_id},
+        "count": len(cks),
+        "checkups": [_checkup_dict(c) for c in cks],
+    }
+
+
+@app.get("/admin/users/{user_id}/ai-insight")
+def admin_user_ai_insight(user_id: int,
+                          admin: User = Depends(get_current_admin),
+                          db: Session = Depends(get_db)):
+    """ML 위험 전환 확률 + 통계 행동 인사이트 + LLM 소견.
+
+    - ML: 학습된 모델로 다음 분기 위험 전환 확률 (모델 없으면 available=False)
+    - 통계: 메모–지표 효과를 n/CI/p(다중보정)로 검정
+    - LLM: 위 숫자를 문장으로 (OPENAI_API_KEY 없으면 규칙 템플릿)
+    """
+    u = db.query(User).filter(User.id == user_id).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    cks = (db.query(Checkup).filter(Checkup.user_id == user_id)
+             .order_by(Checkup.quarter).all())
+
+    risk = ml.predict_transition(cks, u.age, u.sex, u.smoker)
+    insights = behavior.behavior_insights(cks)
+    payload = {
+        "patient": {"name": u.name, "age": u.age, "sex": u.sex, "smoker": u.smoker},
+        "risk": risk,
+        "insights": insights,
+    }
+    narrative = llm.make_narrative(payload)
+    return {"data": payload, "narrative": narrative}
 
 
 @app.delete("/admin/users/{user_id}")
@@ -479,24 +540,52 @@ def _monthly_avg_sql(db: Session, user_ids=None, active_only=True):
              "avg_bmi": round(b, 1) if b is not None else None} for m, w, b in rows]
 
 
+def _latest_checkup_sql(db: Session, active_only=True):
+    """사용자별 최신 분기 검진만 SQL로. {user_id: Checkup}"""
+    sub = (db.query(Checkup.user_id.label("uid"), func.max(Checkup.quarter).label("mx"))
+             .group_by(Checkup.user_id).subquery())
+    q = (db.query(Checkup)
+           .join(sub, (Checkup.user_id == sub.c.uid) & (Checkup.quarter == sub.c.mx)))
+    if active_only:
+        q = q.join(User, User.id == Checkup.user_id).filter(User.status == "active")
+    return {c.user_id: c for c in q.all()}
+
+
 @app.get("/admin/health-stats")
 def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """회원 단위 건강 통계 + 월별 평균 추이 (활성 회원만)."""
-    active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
-    latest = [r for uid, r in _latest_records_sql(db).items() if uid in active_ids]
+    """회원 단위 건강 통계 + 분기별 위험비율 추이 (활성 회원, 최신 검진 기준)."""
+    latest = list(_latest_checkup_sql(db, active_only=True).values())
 
-    bmi_u = Counter(r.bmi_category for r in latest)
-    bp_u = Counter(r.bp_category for r in latest)
-    sugar_u = Counter(r.sugar_category for r in latest)
+    def bmi_cat(v):
+        return "비만" if v >= 25 else "과체중" if v >= 23 else "저체중" if v < 18.5 else "정상"
+    def bp_cat(c):
+        return "고혈압" if (c.systolic >= 140 or c.diastolic >= 90) else \
+               "주의" if (c.systolic >= 120 or c.diastolic >= 80) else "정상"
+    def sugar_cat(v):
+        return "당뇨 의심" if v >= 126 else "공복혈당장애" if v >= 100 else "정상"
+
+    bmi_u = Counter(bmi_cat(c.bmi) for c in latest)
+    bp_u = Counter(bp_cat(c) for c in latest)
+    sugar_u = Counter(sugar_cat(c.fbs) for c in latest)
+    grade_u = Counter(c.grade for c in latest)
     risk = {
         "obese": bmi_u.get("비만", 0),
         "hypertension": bp_u.get("고혈압", 0),
         "diabetes": sugar_u.get("당뇨 의심", 0),
-        "any_warning": sum(1 for r in latest if r.warnings and r.warnings != "[]"),
+        "any_warning": grade_u.get(2, 0),        # 종합판정 위험
     }
 
-    # 월별 평균 (활성 회원 기록 기준) — SQL 집계
-    monthly = _monthly_avg_sql(db, active_only=True)
+    # 분기별 위험(grade==2) 비율 추이 — SQL 집계 (활성 회원)
+    total = (db.query(Checkup.quarter, func.count(Checkup.id))
+               .join(User, User.id == Checkup.user_id).filter(User.status == "active")
+               .group_by(Checkup.quarter).all())
+    risky = (db.query(Checkup.quarter, func.count(Checkup.id))
+               .join(User, User.id == Checkup.user_id)
+               .filter(User.status == "active", Checkup.grade == 2)
+               .group_by(Checkup.quarter).all())
+    rd = dict(risky)
+    monthly = [{"quarter": q, "risk_pct": round(rd.get(q, 0) / n * 100, 1) if n else 0}
+               for q, n in sorted(total)]
 
     return {
         "user_count": len(latest),
@@ -504,6 +593,7 @@ def admin_health_stats(admin: User = Depends(get_current_admin), db: Session = D
         "bmi_user_dist": dict(bmi_u),
         "bp_user_dist": dict(bp_u),
         "sugar_user_dist": dict(sugar_u),
+        "grade_dist": {"정상": grade_u.get(0, 0), "주의": grade_u.get(1, 0), "위험": grade_u.get(2, 0)},
         "monthly": monthly,
     }
 
@@ -604,52 +694,46 @@ def _warn_count(r):
 def admin_health_group(metric: str, category: str = "",
                        admin: User = Depends(get_current_admin),
                        db: Session = Depends(get_db)):
-    """특정 지표 카테고리(또는 경고)에 속한 회원(최신 기록 기준) + 그룹 월별 추이."""
-    active_ids = {u.id for u in db.query(User).filter(User.status == "active").all()}
-    latest = {uid: r for uid, r in _latest_records_sql(db).items() if uid in active_ids}
+    """특정 위험군에 속한 회원(최신 검진 기준) + 그룹 분기별 추이."""
+    latest = _latest_checkup_sql(db, active_only=True)     # {user_id: Checkup}
+    names = {u.id: u for u in db.query(User).filter(User.person_id.isnot(None)).all()}
 
-    if metric == "warning":
-        # 최신 기록에 경고가 있는 회원
-        group = [r for r in latest.values() if _warn_count(r) > 0]
-        user_ids = {r.user_id for r in group}
-        names = {u.id: u.username for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
-        users = [{"id": r.user_id, "username": names.get(r.user_id, "?"),
-                  "value": _warn_count(r), "date": r.date} for r in group]
-        users.sort(key=lambda x: x["value"], reverse=True)
-        # 월별 경고 발생률(%) — SQL 집계
-        monthly = []
-        if user_ids:
-            rows = (db.query(func.substr(Record.date, 1, 7).label("m"),
-                             func.avg(case((Record.warnings != "[]", 1.0), else_=0.0)))
-                      .filter(Record.user_id.in_(user_ids))
-                      .group_by("m").order_by("m").all())
-            monthly = [{"month": m, "avg": round((v or 0) * 100, 1)} for m, v in rows]
-        return {"metric": "warning", "category": "경고 있는 회원", "unit": "경고 발생률(%)",
-                "user_count": len(users), "users": users, "monthly": monthly}
-
-    cat_field = {"bmi": "bmi_category", "bp": "bp_category", "sugar": "sugar_category"}.get(metric)
-    val_field = {"bmi": "bmi", "bp": "systolic", "sugar": "blood_sugar"}.get(metric)
-    unit = {"bmi": "BMI", "bp": "수축기 혈압", "sugar": "공복 혈당"}.get(metric)
-    if cat_field is None:
+    # metric → (판정함수, 값필드, 단위)
+    val_field = {"bmi": "bmi", "bp": "systolic", "sugar": "fbs", "warning": "grade"}.get(metric)
+    unit = {"bmi": "BMI", "bp": "수축기 혈압", "sugar": "공복 혈당", "warning": "종합판정"}.get(metric)
+    if val_field is None:
         raise HTTPException(status_code=400, detail="metric은 bmi/bp/sugar/warning 중 하나여야 합니다")
 
-    group = [r for r in latest.values() if getattr(r, cat_field) == category]
-    user_ids = {r.user_id for r in group}
-    names = {u.id: u.username for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
-    users = [{"id": r.user_id, "username": names.get(r.user_id, "?"),
-              "value": getattr(r, val_field), "date": r.date} for r in group]
+    def hit(c):
+        if metric == "bmi":
+            return c.bmi >= 25          # 비만
+        if metric == "bp":
+            return c.systolic >= 140 or c.diastolic >= 90   # 고혈압
+        if metric == "sugar":
+            return c.fbs >= 126         # 당뇨 의심
+        return c.grade == 2             # warning: 종합판정 위험
+
+    group = [c for c in latest.values() if hit(c)]
+    user_ids = {c.user_id for c in group}
+    users = []
+    for c in group:
+        u = names.get(c.user_id)
+        users.append({"id": c.user_id,
+                      "username": (u.name if u else None) or (u.username if u else "?"),
+                      "value": getattr(c, val_field), "date": c.date})
     users.sort(key=lambda x: x["value"], reverse=True)
 
-    # 그룹 회원 월별 평균 — SQL 집계
+    # 그룹 회원 분기별 평균 — SQL 집계
     monthly = []
     if user_ids:
-        col = getattr(Record, val_field)
-        rows = (db.query(func.substr(Record.date, 1, 7).label("m"), func.avg(col))
-                  .filter(Record.user_id.in_(user_ids))
-                  .group_by("m").order_by("m").all())
-        monthly = [{"month": m, "avg": round(v, 1) if v is not None else None} for m, v in rows]
+        col = getattr(Checkup, val_field)
+        rows = (db.query(Checkup.quarter, func.avg(col))
+                  .filter(Checkup.user_id.in_(user_ids))
+                  .group_by(Checkup.quarter).order_by(Checkup.quarter).all())
+        monthly = [{"month": f"Q{q}", "avg": round(v, 1) if v is not None else None} for q, v in rows]
 
-    return {"metric": metric, "category": category, "unit": unit,
+    cat_label = {"bmi": "비만", "bp": "고혈압", "sugar": "당뇨 의심", "warning": "위험군"}[metric]
+    return {"metric": metric, "category": category or cat_label, "unit": unit,
             "user_count": len(users), "users": users, "monthly": monthly}
 
 

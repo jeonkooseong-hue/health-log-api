@@ -165,6 +165,22 @@
   .gmsg{font-size:13px;min-height:18px;margin-top:12px}
   .gmsg.err{color:var(--bad)} .gmsg.ok{color:var(--ok)}
   .hidden{display:none}
+  /* AI 소견 카드 */
+  .ai-card{background:var(--field);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:14px 0}
+  .ai-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .ai-src{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+  .ai-src.gpt{background:rgba(91,141,239,.15);color:#5b8def}
+  .ai-src.mock{background:rgba(140,150,160,.15);color:var(--muted)}
+  .ai-narr{font-size:14px;line-height:1.7;margin:0 0 12px;color:var(--ink)}
+  .ai-risk{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+  .ai-risk-pct{font-size:30px;font-weight:800;line-height:1}
+  .ai-risk-meta{font-size:13px;color:var(--muted)}
+  .ai-bar{height:7px;border-radius:6px;background:rgba(140,150,160,.18);margin:8px 0 4px;overflow:hidden}
+  .ai-bar-fill{height:100%;border-radius:6px;transition:width .4s}
+  .ai-drivers{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .ai-foot{font-size:11.5px;color:var(--muted);margin:8px 0 0}
+  .mini-chart{margin:10px 0}
+  .mini-title{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:2px}
   @media (max-width:760px){ .risk-cards{grid-template-columns:repeat(2,1fr)} .cols{grid-template-columns:1fr} .vitals{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
@@ -202,7 +218,7 @@
         <h2>회원 관리</h2>
         <div class="toolbar"><input class="search" id="userSearch" placeholder="이름으로 검색…" autocomplete="off"></div>
         <div class="tbl-scroll"><table>
-          <thead><tr><th>ID</th><th>이름</th><th>계정 상태</th><th>건강 상태</th><th>기록</th><th>상세</th></tr></thead>
+          <thead><tr><th>ID</th><th>이름</th><th>인적정보</th><th>계정 상태</th><th>건강 상태</th><th>검진</th><th>상세</th></tr></thead>
           <tbody id="usersBody"></tbody></table></div>
         <div class="muted-dash" id="noUsers" style="display:none;padding:16px 0">검색 결과가 없어요.</div>
         <div class="pager" id="userPager"></div>
@@ -400,7 +416,7 @@ function renderPager(el,page,pages,total,unit,onGo){
 /* ---------- 회원 탭 (계정 상태 + 건강 상태) ---------- */
 function renderUsers(){
   const q=userQuery.trim().toLowerCase();
-  const list=q?usersCache.filter(u=>(u.username||"").toLowerCase().includes(q)):usersCache;
+  const list=q?usersCache.filter(u=>((u.name||"")+(u.username||"")).toLowerCase().includes(q)):usersCache;
   const pages=Math.max(1,Math.ceil(list.length/U_SIZE));
   if(userPage>pages) userPage=pages;
   const slice=list.slice((userPage-1)*U_SIZE,userPage*U_SIZE);
@@ -409,7 +425,9 @@ function renderUsers(){
   $("usersBody").innerHTML=slice.map(u=>{
     const risk=u.health==="위험";
     const ctrl=`<select class="status-sel" data-id="${u.id}">${stOpt(u.status)}</select>`;
-    return `<tr class="${risk?"risk-row":""}"><td class="num">${u.id}</td><td>${u.username||"—"}</td>`+
+    const info=u.age?`${u.age}세 ${u.sex==="M"?"남":"여"}${u.smoker?" · 흡연":""}`:"—";
+    return `<tr class="${risk?"risk-row":""}"><td class="num">${u.id}</td><td>${u.name||u.username||"—"}</td>`+
+      `<td>${info}</td>`+
       `<td>${ctrl}</td><td>${healthChip(u.health)}</td>`+
       `<td class="num">${u.record_count}</td>`+
       `<td class="manage-cell"><button class="btn-view" data-id="${u.id}">상세</button></td></tr>`;
@@ -480,7 +498,7 @@ async function openGroupDetail(metric,category){
   if(!res.ok){ alert("불러오지 못했어요."); return; }
   const d=await res.json();
   const mname=d.unit||metric;
-  const isRisk=["비만","고혈압","당뇨 의심","경고 있는 회원"].includes(d.category);
+  const isRisk=["비만","고혈압","당뇨 의심","경고 있는 회원","위험군"].includes(d.category);
   const rowsHtml=(list)=>list.map(u=>
     `<tr class="row-click ${isRisk?"risk-row":""}" data-id="${u.id}"><td>${isRisk?"⚠ ":""}${u.username}</td>`+
     `<td class="num ${isRisk?"risk-val":""}">${u.value}</td><td class="num">${u.date}</td></tr>`).join("")
@@ -508,75 +526,96 @@ async function openGroupDetail(metric,category){
   $("userModal").classList.remove("hidden");
 }
 
-/* ---------- 회원 상세 (기간 필터 + 월 구분자) ---------- */
+/* ---------- 회원 상세 (검진 시계열 + AI 소견) ---------- */
+const GKO={0:"정상",1:"주의",2:"위험"};
+const gradeColor=(g)=>g===2?"var(--bad)":g===1?"#e8a33d":"var(--ok)";
 async function loadUserDetail(id){
-  const [res, insRes]=await Promise.all([
+  const [res, aiRes]=await Promise.all([
     fetch(`/admin/users/${id}`,{headers:authHead()}),
-    fetch(`/admin/users/${id}/insights`,{headers:authHead()}),
+    fetch(`/admin/users/${id}/ai-insight`,{headers:authHead()}),
   ]);
   if(!res.ok){ alert("회원 정보를 불러오지 못했어요."); return; }
   const d=await res.json();
-  const ins=insRes.ok?await insRes.json():{narrative:[],events:[]};
-  const dcol=(v)=>v>2?"var(--bad)":(v<-2?"var(--ok)":"var(--muted)");
-  const sgn=(v)=>(v>0?"+":"")+v;
-  const insHtml=`
-    <h3 class="sub2">행동–지표 인사이트 (무엇이 이 환자의 수치를 움직이는가)</h3>
-    <div class="ins-narr">${(ins.narrative||[]).map(n=>`<div class="ins-line">• ${n}</div>`).join("")}</div>
-    ${(ins.events||[]).length?`<div class="tbl-scroll" style="margin-top:10px"><table>
-      <thead><tr><th>행동</th><th>일수</th><th>혈압 변화</th><th>혈당 변화</th></tr></thead>
-      <tbody>${ins.events.map(e=>`<tr><td>${e.event}</td><td class="num">${e.n}</td>`+
-        `<td class="num" style="color:${dcol(e.sys_delta)};font-weight:600">${sgn(e.sys_delta)}</td>`+
-        `<td class="num" style="color:${dcol(e.sugar_delta)};font-weight:600">${sgn(e.sugar_delta)}</td></tr>`).join("")}
-      </tbody></table></div>`:""}`;
-  const latest=d.records[0];
-  const vitals=latest?`<div class="vitals">
-      <div class="vit"><div class="vit-label">체중</div><div class="vit-val">${latest.weight}<span>kg</span></div></div>
-      <div class="vit"><div class="vit-label">키</div><div class="vit-val">${latest.height}<span>cm</span></div></div>
-      <div class="vit"><div class="vit-label">BMI</div><div class="vit-val">${latest.bmi}</div></div>
-      <div class="vit"><div class="vit-label">혈압</div><div class="vit-val">${latest.systolic}/${latest.diastolic}</div></div>
-      <div class="vit"><div class="vit-label">혈당</div><div class="vit-val">${latest.blood_sugar}<span>mg/dL</span></div></div>
-    </div>`:`<p class="muted-dash" style="margin:16px 0">기록이 없어요.</p>`;
-  const avg=d.stats?`평균 체중 ${d.stats.avg_weight}kg · 평균 BMI ${d.stats.avg_bmi ?? "—"}`:"기록 없음";
+  const ai=aiRes.ok?await aiRes.json():null;
+  const cks=d.checkups||[];
+  const last=cks.length?cks[cks.length-1]:null;
+  const who=`${d.age??"?"}세 · ${d.sex==="M"?"남성":"여성"} · ${d.smoker?"흡연":"비흡연"}`;
   const stChip=`<span class="st-chip st-${d.status}">${STATUS_KO[d.status]||d.status}</span>`;
-  const actionBtn=(myRole==="superadmin"&&d.status!=="withdrawn")?`<button class="btn-del-user" id="wdBtn">회원 탈퇴 처리</button>`:"";
-  $("userDetailBody").innerHTML=`
-    <div class="detail-head2"><span class="detail-name">${d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${stChip}</div>
-    <p class="detail-meta">가입일 ${(d.created_at||"—").slice(0,10)} · 총 ${d.record_count}건 · ${avg}</p>
-    <h3 class="sub2">최근 측정</h3>${vitals}
-    ${insHtml}
-    <h3 class="sub2">기간별 기록</h3>
-    <div class="toolbar"><input class="filter-sel" id="detStart" placeholder="시작일" readonly><input class="filter-sel" id="detEnd" placeholder="종료일" readonly><button class="btn" id="detReset">전체</button></div>
-    <div id="detTrend"></div><div id="detTable"></div>${actionBtn}`;
-  let detMonth=null;
-  function renderPeriod(){
-    const s=$("detStart").value, e=$("detEnd").value;
-    let list=d.records;
-    if(s) list=list.filter(r=>r.date>=s);
-    if(e) list=list.filter(r=>r.date<=e);
-    const asc=list.slice().sort((a,b)=> a.date<b.date?-1:1);
-    $("detTrend").innerHTML=asc.length?`<h3 class="sub2">체중 추이</h3>`+lineChart(asc.map(r=>({label:r.date.slice(5),value:r.weight})),"var(--brand)"):"";
-    // 월별 탭
-    const months=[...new Set(list.map(r=>r.date.slice(0,7)))].sort().reverse();
-    if(!months.includes(detMonth)) detMonth=months[0]||null;
-    const cntOf=(m)=>list.filter(r=>r.date.slice(0,7)===m).length;
-    const tabs=months.map(m=>`<button class="mtab ${m===detMonth?"active":""}" data-m="${m}">${m}<span class="mtab-n">${cntOf(m)}</span></button>`).join("");
-    const rows=list.filter(r=>r.date.slice(0,7)===detMonth).sort((a,b)=> a.date<b.date?1:-1).map(r=>
-      `<tr><td class="num">${r.date}</td><td class="num">${r.weight}</td><td class="num">${r.bmi}</td>`+
-      `<td>${r.bmi_category}</td><td class="num">${r.systolic}/${r.diastolic}</td><td class="num">${r.blood_sugar}</td>`+
-      `<td>${r.memo||"—"}</td><td>${(r.warnings||[]).join(", ")||"—"}</td></tr>`).join("")
-      || `<tr><td colspan="8" class="muted-dash">해당 기간 기록 없음</td></tr>`;
-    $("detTable").innerHTML=`<p class="detail-meta" style="margin:6px 0 6px">전체 ${list.length}건 · 선택 월 ${detMonth||"-"}</p>
-      <div class="mtabs">${tabs}</div>
-      <div class="tbl-scroll" style="max-height:320px;overflow:auto"><table>
-      <thead><tr><th>날짜</th><th>체중</th><th>BMI</th><th>체형</th><th>혈압</th><th>혈당</th><th>메모</th><th>경고</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
-    $("detTable").querySelectorAll(".mtab").forEach(b=>b.onclick=()=>{ detMonth=b.dataset.m; renderPeriod(); });
+  const vitals=last?`<div class="vitals">
+      <div class="vit"><div class="vit-label">BMI</div><div class="vit-val">${last.bmi}</div></div>
+      <div class="vit"><div class="vit-label">허리둘레</div><div class="vit-val">${last.waist}<span>cm</span></div></div>
+      <div class="vit"><div class="vit-label">혈압</div><div class="vit-val">${last.systolic}/${last.diastolic}</div></div>
+      <div class="vit"><div class="vit-label">공복혈당</div><div class="vit-val">${last.fbs}<span>mg/dL</span></div></div>
+      <div class="vit"><div class="vit-label">종합판정</div><div class="vit-val" style="color:${gradeColor(last.grade)}">${GKO[last.grade]}</div></div>
+    </div>`:`<p class="muted-dash" style="margin:16px 0">검진 기록이 없어요.</p>`;
+
+  // ----- AI 소견 카드 -----
+  let aiHtml="";
+  if(ai){
+    const risk=ai.data.risk||{}, eff=(ai.data.insights&&ai.data.insights.effects)||[];
+    let riskLine="";
+    if(risk.available&&risk.eligible&&risk.prob!=null){
+      const pct=(risk.prob*100).toFixed(0), base=((risk.baseline||0)*100).toFixed(0);
+      const lvl=risk.prob>=(risk.baseline*2)?"높음":risk.prob>=risk.baseline?"보통":"낮음";
+      const col=lvl==="높음"?"var(--bad)":lvl==="보통"?"#e8a33d":"var(--ok)";
+      const w=Math.min(100,risk.prob*100).toFixed(0);
+      riskLine=`<div class="ai-risk"><span class="ai-risk-pct" style="color:${col}">${pct}%</span>
+        <span class="ai-risk-meta">다음 분기 위험 전환 확률 · 평균 ${base}% 대비 <b style="color:${col}">${lvl}</b></span></div>
+        <div class="ai-bar"><div class="ai-bar-fill" style="width:${w}%;background:${col}"></div></div>`;
+      if((risk.drivers||[]).length) riskLine+=`<div class="ai-drivers">주요 위험 요인: ${risk.drivers.map(x=>x.feature).join(" · ")}</div>`;
+    } else if(risk.available&&!risk.eligible){
+      riskLine=`<div class="ai-risk-meta">현재 위험군 — 전환 예측 대상이 아닌 직접 관리 대상</div>`;
+    } else if(!risk.available){
+      riskLine=`<div class="ai-risk-meta">예측 모델 미탑재 (models/risk_model.joblib 없음)</div>`;
+    }
+    const sig=eff.filter(e=>e.verdict==="유의");
+    const effRows=sig.map(e=>
+      `<tr><td>${e.tag}</td><td>${e.metric_ko}</td>`+
+      `<td class="num" style="color:${e.direction==="감소"?"var(--ok)":"var(--bad)"};font-weight:600">${e.delta>0?"+":""}${e.delta}</td>`+
+      `<td class="num">${e.n}</td><td class="num">[${e.ci_low}, ${e.ci_high}]</td><td class="num">${e.p_adj}</td></tr>`).join("");
+    aiHtml=`<div class="ai-card">
+      <div class="ai-head"><h3 class="sub2" style="margin:0">AI 소견</h3><span class="ai-src ${ai.narrative.source}">${ai.narrative.source==="gpt"?"GPT":"규칙기반"}</span></div>
+      <p class="ai-narr">${ai.narrative.text}</p>
+      ${riskLine}
+      ${effRows?`<div class="tbl-scroll" style="margin-top:12px"><table>
+        <thead><tr><th>행동</th><th>지표</th><th>변화</th><th>n</th><th>95% 신뢰구간</th><th>보정 p</th></tr></thead>
+        <tbody>${effRows}</tbody></table></div>
+        <p class="ai-foot">다중비교 보정 후 p&lt;0.05 이고 신뢰구간이 0을 넘지 않는 ‘유의’ 효과만 표시</p>`:
+        `<p class="ai-foot">통계적으로 유의한 행동–지표 연관은 관찰되지 않음</p>`}
+    </div>`;
   }
-  attachDatePicker($("detStart")); attachDatePicker($("detEnd"));
-  $("detStart").addEventListener("change",renderPeriod); $("detEnd").addEventListener("change",renderPeriod);
-  $("detReset").onclick=()=>{ $("detStart").value=""; $("detEnd").value=""; renderPeriod(); };
-  renderPeriod();
-  if(myRole==="superadmin"&&d.status!=="withdrawn") $("wdBtn").onclick=()=>withdrawUser(d.id,d.username);
+  const actionBtn=(myRole==="superadmin"&&d.status!=="withdrawn")?`<button class="btn-del-user" id="wdBtn">회원 탈퇴 처리</button>`:"";
+  const avgTxt=d.stats?`평균 BMI ${d.stats.avg_bmi ?? "—"} · 최근 판정 ${d.stats.latest_grade||"—"}`:"검진 없음";
+  $("userDetailBody").innerHTML=`
+    <div class="detail-head2"><span class="detail-name">${d.name||d.username}</span><span class="role-badge ${d.role}">${d.role}</span>${stChip}</div>
+    <p class="detail-meta">${who} · 총 ${d.record_count}건 검진 · ${avgTxt}</p>
+    <h3 class="sub2">최근 검진</h3>${vitals}
+    ${aiHtml}
+    <h3 class="sub2">검진 추이</h3>
+    <div id="detTrend"></div>
+    <h3 class="sub2">검진 이력</h3>
+    <div id="detTable"></div>${actionBtn}`;
+
+  // 분기별 추이 (혈압·혈당·BMI + 판정 밴드)
+  const asc=cks.slice().sort((a,b)=>a.quarter-b.quarter);
+  if(asc.length){
+    $("detTrend").innerHTML=
+      `<div class="mini-chart"><div class="mini-title">수축기 혈압</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.systolic})),"#d9534f",[{from:140,to:200,color:"rgba(217,83,79,.10)"}])}</div>`+
+      `<div class="mini-chart"><div class="mini-title">공복혈당</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.fbs})),"#e8a33d",[{from:126,to:300,color:"rgba(232,163,61,.10)"}])}</div>`+
+      `<div class="mini-chart"><div class="mini-title">체질량지수(BMI)</div>${lineChart(asc.map(c=>({label:"Q"+c.quarter,value:c.bmi})),"#5b8def",[{from:25,to:40,color:"rgba(217,83,79,.08)"}])}</div>`;
+  }
+  // 검진 테이블 (분기 내림차순) + 메모 강조
+  const rows=cks.slice().sort((a,b)=>b.quarter-a.quarter).map(c=>
+    `<tr><td class="num">Q${c.quarter}</td><td class="num">${c.date}</td><td class="num">${c.bmi}</td>`+
+    `<td class="num">${c.systolic}/${c.diastolic}</td><td class="num">${c.fbs}</td>`+
+    `<td class="num">${c.ldl}</td><td class="num">${c.ggt}</td>`+
+    `<td><span style="color:${gradeColor(c.grade)};font-weight:600">${GKO[c.grade]}</span></td>`+
+    `<td>${c.memo||"—"}</td></tr>`).join("")||`<tr><td colspan="9" class="muted-dash">검진 없음</td></tr>`;
+  $("detTable").innerHTML=`<div class="tbl-scroll" style="max-height:340px;overflow:auto"><table>
+    <thead><tr><th>분기</th><th>검진일</th><th>BMI</th><th>혈압</th><th>혈당</th><th>LDL</th><th>γ-GTP</th><th>판정</th><th>생활습관 메모</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+
+  if(myRole==="superadmin"&&d.status!=="withdrawn") $("wdBtn").onclick=()=>withdrawUser(d.id,d.name||d.username);
   $("userModal").classList.remove("hidden");
 }
 async function withdrawUser(id,name){

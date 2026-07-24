@@ -1,6 +1,7 @@
 """데이터베이스 설정 + 표(테이블) 정의"""
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Text, DateTime
+from sqlalchemy import (create_engine, Column, Integer, String, Float, Boolean,
+                        ForeignKey, Text, DateTime, Index)
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 # SQLite 파일 하나로 도는 DB (health.db)
@@ -27,10 +28,19 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.now)                # 가입일시
     status = Column(String, default="active", nullable=False)         # active(활성)/dormant(휴면)/withdrawn(탈퇴)
 
+    # 인적 정보 (코호트 환자용. 직접 가입한 관리자 계정은 비어 있음)
+    name = Column(String, index=True)          # 환자 한글 이름
+    person_id = Column(Integer, index=True)    # 코호트 원본 person_id
+    age = Column(Integer)                       # 나이 (첫 검진 기준)
+    sex = Column(String)                        # M / F
+    smoker = Column(Boolean)                    # 흡연 여부
+
     # 이 사용자가 가진 기록들 (1:N)
     records = relationship("Record", back_populates="owner", cascade="all, delete-orphan")
     # 이 사용자의 활동 로그들 (1:N)
     logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    # 이 사용자의 건강검진 기록들 (1:N)
+    checkups = relationship("Checkup", back_populates="owner", cascade="all, delete-orphan")
 
 
 class Record(Base):
@@ -58,6 +68,41 @@ class Record(Base):
     warnings = Column(Text, default="[]")  # 경고 목록을 JSON 문자열로 저장
 
     owner = relationship("User", back_populates="records")
+
+
+class Checkup(Base):
+    """건강검진 기록 표 (코호트 시계열 검진. 분기별 1건)"""
+    __tablename__ = "checkups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    quarter = Column(Integer, nullable=False, index=True)  # 0~19 (5년 × 분기)
+    date = Column(String, nullable=False, index=True)      # yyyy-mm-dd
+
+    # 검진 14지표
+    bmi = Column(Float)
+    waist = Column(Float)
+    systolic = Column(Integer)
+    diastolic = Column(Integer)
+    fbs = Column(Integer)            # 공복혈당
+    total_chol = Column(Integer)
+    triglyceride = Column(Integer)
+    hdl = Column(Integer)
+    ldl = Column(Integer)
+    hemoglobin = Column(Float)
+    ast = Column(Integer)
+    alt = Column(Integer)
+    ggt = Column(Integer)
+    creatinine = Column(Float)
+
+    grade = Column(Integer, index=True)   # 0정상 / 1주의 / 2위험
+    memo = Column(String, default="")     # 지표 편차 기반 생활습관 메모
+
+    owner = relationship("User", back_populates="checkups")
+
+    # 최신 분기 조회(회원별 max quarter)용 복합 인덱스
+    __table_args__ = (Index("ix_checkups_user_quarter", "user_id", "quarter"),)
 
 
 class ActivityLog(Base):

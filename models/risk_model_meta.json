@@ -1,0 +1,27 @@
+{
+  "model": "LogisticRegression",
+  "target": "현재 정상·주의 → 다음 분기 위험 전환",
+  "n_people": 30000,
+  "n_rows": 335074,
+  "n_features": 62,
+  "pos_rate": 0.0972,
+  "pr_auc": 0.5349,
+  "auc": 0.9104,
+  "baseline": 0.0978,
+  "subgroups": [
+    {
+      "group": "정상 출발",
+      "n": 46393,
+      "pos_rate": 0.016,
+      "pr_auc": 0.1939,
+      "lift": 12.14
+    },
+    {
+      "group": "주의 출발",
+      "n": 37109,
+      "pos_rate": 0.2002,
+      "pr_auc": 0.5614,
+      "lift": 2.8
+    }
+  ]
+}

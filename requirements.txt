@@ -4,3 +4,10 @@ sqlalchemy
 bcrypt
 PyJWT
 python-multipart
+# 위험 전환 예측 모델(ml.py) 서빙용
+numpy
+pandas
+scikit-learn
+joblib
+# LLM 소견(llm.py) — OPENAI_API_KEY 있을 때만 GPT 사용, 없으면 규칙 템플릿
+openai

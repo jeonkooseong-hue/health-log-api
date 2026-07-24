@@ -50,6 +50,26 @@ docker run -d -p 8002:8000 -e SECRET_KEY=아무_긴_임의_문자열 health-log-
 |------|--------|------|
 | `SECRET_KEY` | 실행 시 임의 생성 | JWT 서명 키. **지정하지 않으면 서버를 재시작할 때마다 기존 토큰이 모두 무효**가 됩니다. |
 | `TOKEN_EXPIRE_HOURS` | `12` | 토큰 유효 시간 |
+| `OPENAI_API_KEY` | 없음 | 있으면 AI 소견을 GPT로 생성, 없으면 규칙 기반 템플릿. `.env` 파일에 넣어도 됩니다. |
+| `OPENAI_MODEL` | `gpt-4o-mini` | 사용할 GPT 모델 |
+
+> API 키는 `.env` 파일에 `OPENAI_API_KEY=sk-...` 형태로 저장하세요. `.env`는 `.gitignore`에 있어 커밋되지 않습니다.
+> **키를 소스 코드나 저장소에 직접 넣지 마세요.**
+
+## AI 위험 예측 & 인사이트
+
+`/dashboard`에서 회원 상세를 열면 **AI 소견 카드**가 표시됩니다. 세 단계로 동작합니다.
+
+1. **ML — 위험 전환 확률**: 학습된 로지스틱 모델([`train_model.py`](train_model.py))이 검진 시계열로
+   "현재 정상·주의인 회원이 다음 분기에 위험군으로 전환될 확률"을 예측합니다. (모델 파일 [`models/risk_model.joblib`](models/))
+2. **통계 — 행동 인사이트**: 생활습관 메모(운동·야식·음주 등)가 있던 검진과 없던 검진의 지표를
+   **Welch 2표본 t-검정**으로 비교하고, 표본수·95% 신뢰구간·다중비교 보정(Benjamini–Hochberg) 후
+   **유의한 효과만** 남깁니다. ([`stats.py`](stats.py))
+3. **LLM — 소견 서술**: 위 숫자를 문장으로 옮깁니다. **판단은 하지 않고** 계산된 값만 서술하며,
+   `OPENAI_API_KEY`가 없으면 동일한 규율의 규칙 템플릿을 씁니다. ([`llm.py`](llm.py))
+
+> 검진 데이터는 코호트 생성기([`load_cohort.py`](load_cohort.py))로 DB에 적재합니다:
+> `python load_cohort.py 5000` (5,000명 × 분기 검진). 이때 로그인 계정은 `admin` / `admin1234` (superadmin).
 
 ## 데이터 모델
 
