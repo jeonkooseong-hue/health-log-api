@@ -170,7 +170,7 @@ ERD와 DB↔API 스키마 매핑은 [`docs/ERD.md`](docs/ERD.md), ErdCloud impor
 
 ## 분석 (`analysis/`)
 
-과제 범위를 넘어선 확장 작업입니다. API 실행에는 필요하지 않습니다.
+
 
 | 파일 | 내용 |
 |------|------|
