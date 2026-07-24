@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>마이 헬스 로그 API — 프로젝트 보고서</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Malgun Gothic","맑은 고딕",sans-serif; color:#1a2230; line-height:1.65;
+         font-size:11pt; margin:0; }
+  h1 { font-size:24pt; margin:0 0 4px; color:#1b3a6b; }
+  h2 { font-size:15pt; margin:26px 0 10px; color:#1b3a6b; border-bottom:2px solid #d7e0ee;
+       padding-bottom:5px; }
+  h3 { font-size:12pt; margin:16px 0 6px; color:#2a3550; }
+  p { margin:6px 0; }
+  ul { margin:6px 0; padding-left:20px; }
+  li { margin:3px 0; }
+  code { background:#eef2f8; padding:1px 5px; border-radius:4px; font-size:10pt;
+         font-family:"D2Coding",Consolas,monospace; }
+  table { border-collapse:collapse; width:100%; margin:10px 0; font-size:10pt; }
+  th,td { border:1px solid #ccd5e2; padding:6px 9px; text-align:left; vertical-align:top; }
+  th { background:#1b3a6b; color:#fff; font-weight:600; }
+  tr:nth-child(even) td { background:#f5f8fc; }
+  .cover { text-align:center; padding:40px 0 30px; border-bottom:3px solid #1b3a6b; margin-bottom:10px; }
+  .cover .tag { display:inline-block; background:#e7effb; color:#1b3a6b; font-weight:600;
+                padding:4px 14px; border-radius:20px; font-size:10pt; margin-bottom:14px; }
+  .cover .sub { font-size:12pt; color:#54617a; margin-top:6px; }
+  .meta { display:inline-block; text-align:left; margin-top:18px; font-size:10.5pt; }
+  .meta td { border:none; padding:3px 10px; }
+  .meta td:first-child { color:#54617a; font-weight:600; }
+  .lead { background:#f5f8fc; border-left:4px solid #1b3a6b; padding:12px 16px; border-radius:0 8px 8px 0;
+          margin:14px 0; }
+  .shot { margin:14px 0; page-break-inside:avoid; }
+  .shot img { width:100%; border:1px solid #ccd5e2; border-radius:6px; }
+  .shot .cap { font-size:9.5pt; color:#54617a; margin-top:5px; text-align:center; }
+  .grid2 { display:flex; gap:12px; }
+  .grid2 .shot { flex:1; }
+  .badge { display:inline-block; background:#e6f4ea; color:#2a7d46; font-size:9pt;
+           padding:1px 8px; border-radius:10px; font-weight:600; }
+  .pill { display:inline-block; background:#eef2f8; padding:2px 9px; border-radius:12px;
+          font-size:9.5pt; margin:2px 4px 2px 0; }
+  .pagebreak { page-break-before:always; }
+  .foot { margin-top:30px; padding-top:12px; border-top:1px solid #ccd5e2; font-size:9pt; color:#8b95a7; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="tag">미니 프로젝트 · FastAPI &amp; Docker</div>
+  <h1>마이 헬스 로그 API</h1>
+  <div style="font-size:12pt;color:#54617a;margin-top:6px">
+    건강 기록을 관리·분석하고, 학습된 AI가 위험을 예측하는 개인 건강 관리 REST API
+  </div>
+  <table class="meta"><tbody>
+    <tr><td>제출자</td><td>________________ (GitHub: jeonkooseong-hue)</td></tr>
+    <tr><td>소속 / 반</td><td>________________</td></tr>
+    <tr><td>GitHub</td><td>https://github.com/jeonkooseong-hue/health-log-api</td></tr>
+    <tr><td>배포 URL</td><td>https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/docs</td></tr>
+    <tr><td>제출일</td><td>2026. 07. ____</td></tr>
+  </tbody></table>
+</div>
+
+<h2>1. 프로젝트 주제</h2>
+<div class="lead">
+  <b>매일의 건강 수치를 한 줄로 기록하면, 서버가 BMI·혈압·혈당을 자동 분류하고 경고를 띄우며,
+  쌓인 검진 시계열로 "다음에 위험군이 될 사람"을 학습된 모델이 미리 찾아 알려주는 API.</b>
+</div>
+<p>
+  개인은 <code>/ui</code>에서 자신의 검진 추이와 AI 소견을 보고, 관리자는 <code>/dashboard</code>에서
+  전체 회원의 위험군을 한눈에 관리한다. 단순 CRUD를 넘어, 실제 인구통계 기준으로 생성한
+  5,000명·9만 건의 검진 데이터 위에서 <b>머신러닝 위험 예측 + 통계 검정 + LLM 소견</b>을 결합했다.
+</p>
+
+<h2>2. 핵심 기능</h2>
+<table>
+  <thead><tr><th>구분</th><th>기능</th></tr></thead>
+  <tbody>
+    <tr><td>기록 관리 (필수)</td><td>건강 수치 CRUD · 날짜 검색 · 통계 · BMI 자동계산 · 혈압/혈당 분류 · 경고 생성</td></tr>
+    <tr><td>인증·권한</td><td>회원가입/로그인(JWT) · user / admin / superadmin 3단 권한 · 계정 상태(활성/휴면/탈퇴)</td></tr>
+    <tr><td>관리자 대시보드</td><td>위험군 카드 · 회원/관리자/활동로그/통계 탭 · 회원 상세 · 위험군 드릴다운</td></tr>
+    <tr><td>AI 위험 예측</td><td>학습된 로지스틱 모델이 "다음 분기 위험 전환 확률" 예측 (PR-AUC 0.535, 무작위의 5.5배)</td></tr>
+    <tr><td>행동 인사이트</td><td>생활습관 메모–지표 효과를 Welch t-검정 + 다중비교 보정으로 <b>유의한 것만</b> 판정</td></tr>
+    <tr><td>AI 소견</td><td>위 숫자를 GPT가 문장으로 서술 (판단 안 함, 유의 효과만 언급)</td></tr>
+  </tbody>
+</table>
+
+<h2>3. 기술 스택 &amp; 아키텍처</h2>
+<p>
+  <span class="pill">Python 3.13</span><span class="pill">FastAPI</span><span class="pill">Pydantic</span>
+  <span class="pill">SQLAlchemy · SQLite</span><span class="pill">PyJWT · bcrypt</span>
+  <span class="pill">scikit-learn · pandas</span><span class="pill">OpenAI GPT</span>
+  <span class="pill">Docker</span><span class="pill">AWS Lightsail</span>
+</p>
+<table>
+  <thead><tr><th>계층</th><th>구성</th></tr></thead>
+  <tbody>
+    <tr><td>API</td><td>FastAPI — 엔드포인트 · Pydantic 입력 검증(생리학적 범위 가드) · 건강 판정 로직</td></tr>
+    <tr><td>데이터</td><td>SQLite 4테이블 (users · records · checkups · activity_logs), 파일 영속</td></tr>
+    <tr><td>AI</td><td>ml.py(예측) · stats.py(통계 검정) · llm.py(소견), 학습 모델 joblib 로드</td></tr>
+    <tr><td>배포</td><td>GitHub → Docker Hub → AWS Lightsail Container Service (서울 리전, HTTPS)</td></tr>
+  </tbody>
+</table>
+<p style="font-size:10pt;color:#54617a">
+  ※ 데이터 모델(ERD)은 <code>docs/ERD.png</code>, 전체 데이터·AI 흐름은 <code>docs/PROCESS FLOW CHART.pdf</code> 참고.
+</p>
+
+<div class="pagebreak"></div>
+<h2>4. 화면 캡쳐 — 관리자 대시보드</h2>
+
+<div class="shot">
+  <img src="screenshots/01-members.png" alt="회원 관리">
+  <div class="cap">▲ 회원 관리 — 상단 위험군 카드(비만·고혈압·당뇨·경고) + 회원 목록(이름·인적정보·건강상태·검진수). 위험 회원은 좌측 빨강 스트라이프.</div>
+</div>
+
+<div class="grid2">
+  <div class="shot">
+    <img src="screenshots/02-admins.png" alt="관리자 권한">
+    <div class="cap">▲ 관리자 탭 — 권한 지정/변경 (superadmin 전용)</div>
+  </div>
+  <div class="shot">
+    <img src="screenshots/03-logs.png" alt="활동 로그">
+    <div class="cap">▲ 활동 로그 — 로그인·기록생성·실패 이력 (기간·동작 필터)</div>
+  </div>
+</div>
+
+<div class="shot">
+  <img src="screenshots/04-stats.png" alt="통계">
+  <div class="cap">▲ 통계 탭 — 분기별 위험 판정 비율 추이 + BMI·혈압·혈당 분포 (클릭 시 해당 회원 목록)</div>
+</div>
+
+<div class="pagebreak"></div>
+<h2>5. 화면 캡쳐 — 사용자 화면 &amp; AI</h2>
+
+<div class="shot">
+  <img src="screenshots/05-ui.png" alt="사용자 화면">
+  <div class="cap">▲ 개인 화면 — 종합판정 KPI(위험) · <b>AI 건강 소견(GPT)</b> · 오늘 기록 입력폼(범위 가드) · 내 일일 기록(BMI 자동계산·분류)</div>
+</div>
+
+<div class="grid2">
+  <div class="shot">
+    <img src="screenshots/06-trend.png" alt="검진 추이">
+    <div class="cap">▲ 검진 추이 — 혈압·혈당·BMI 시계열 (임계선 밴드)</div>
+  </div>
+  <div class="shot">
+    <img src="screenshots/07-history.png" alt="검진 이력">
+    <div class="cap">▲ 병원 검진 이력 — 분기별 지표 + 생활습관 메모</div>
+  </div>
+</div>
+
+<h2>6. AI 파이프라인 — "판단하는 AI"</h2>
+<p>단순 규칙이 아니라, 세 단계가 각자 역할을 나눠 판단한다.</p>
+<table>
+  <thead><tr><th>단계</th><th>담당</th><th>하는 일</th><th>검증</th></tr></thead>
+  <tbody>
+    <tr><td>위험 확률</td><td>ML (로지스틱)</td><td>다음 분기 위험 전환 예측</td><td>PR-AUC 0.535 (무작위의 5.5배)</td></tr>
+    <tr><td>행동 효과</td><td>통계 (Welch t)</td><td>메모–지표 인과의 유의성</td><td>95% 신뢰구간 + 다중비교 보정</td></tr>
+    <tr><td>소견 서술</td><td>LLM (GPT)</td><td>숫자를 문장으로</td><td>유의 효과만 언급, 없는 값 생성 금지</td></tr>
+  </tbody>
+</table>
+<p style="font-size:10pt;color:#54617a">
+  예: "권다은 환자는 70세 여성으로 현재 위험군… 위험 등급 2, 기초 위험도 9.78%" (실제 GPT 출력, 위 화면 캡쳐).
+</p>
+
+<h2>7. 요구사항 충족 &amp; 확장</h2>
+<table>
+  <thead><tr><th>과제 요구</th><th>상태</th></tr></thead>
+  <tbody>
+    <tr><td>7개 엔드포인트 (POST/GET/GET{id}/PUT/DELETE/search/stats)</td><td><span class="badge">완료</span></td></tr>
+    <tr><td>Pydantic 검증 · 파일 영속 · /docs · 무오류 실행</td><td><span class="badge">완료</span></td></tr>
+    <tr><td>BMI·혈압·혈당 분류 + 경고 (명세 규격 그대로)</td><td><span class="badge">완료</span></td></tr>
+    <tr><td>Docker 빌드·실행 · GitHub Public · README</td><td><span class="badge">완료</span></td></tr>
+    <tr><td>[가점] 클라우드 배포 (AWS Lightsail 공인 URL)</td><td><span class="badge">완료</span></td></tr>
+    <tr><td>[확장] 주간 리포트 · 사용자 구분 · 관리 화면 · AI 예측</td><td><span class="badge">완료</span></td></tr>
+  </tbody>
+</table>
+
+<div class="foot">
+  마이 헬스 로그 API · 프로젝트 보고서 · https://github.com/jeonkooseong-hue/health-log-api
+</div>
+
+</body>
+</html>
