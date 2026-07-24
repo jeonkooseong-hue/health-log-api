@@ -2,6 +2,9 @@
 
 > 매일의 건강 수치를 기록하면 BMI를 자동 계산하고 혈압·혈당을 분류해 경고를 알려주는, 로그인 기반 개인 건강 관리 REST API + 병원용 관리 대시보드.
 
+**🌐 배포 URL:** https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/docs
+(대시보드: [`/dashboard`](https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/dashboard) · 사용자 화면: [`/ui`](https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/ui))
+
 회원가입·로그인 후 건강 수치(몸무게·키·혈압·혈당 등)를 저장하면 서버가 BMI 계산, 혈압/혈당 분류, 경고 생성을 자동으로 처리하고, 쌓인 기록으로 검색·통계·주간 리포트를 제공합니다. 데이터는 SQLite에 저장되며 기록은 로그인한 사용자별로 분리됩니다. 관리자는 별도 대시보드에서 회원 현황·위험군·활동 로그를 확인할 수 있습니다.
 
 > ⚠️ 학습용 프로젝트입니다. 건강 분류 기준은 국내 공개 기준을 참고했으나 실제 의학적 진단이 아닙니다.
@@ -195,5 +198,14 @@ Dockerfile        이미지 빌드 설계도
 
 ## 배포 URL
 
-<!-- 배포 후 접속 주소 기입 -->
-(배포 예정)
+AWS Lightsail Container Service (서울 리전)에 배포:
+
+| 화면 | 주소 |
+|------|------|
+| API 문서 (Swagger) | https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/docs |
+| 관리자 대시보드 | https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/dashboard |
+| 사용자 화면 | https://health-log.f30rczkmnnh6j.ap-northeast-2.cs.amazonlightsail.com/ui |
+
+로그인: 관리자 `admin` / `admin1234` · 환자 `권다은`(또는 `patient0003`) / `patient1234`
+
+> 배포 구조: GitHub → Docker Hub(`jeonkooseong/health-log-api`) → Lightsail Container Service.
